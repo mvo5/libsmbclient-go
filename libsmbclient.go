@@ -1,4 +1,8 @@
 package libsmbclient
+import (
+	"errors"
+	"unsafe"
+)
 
 /*
 #cgo LDFLAGS: -lsmbclient
@@ -27,16 +31,18 @@ SMBCFILE* my_smbc_open(SMBCCTX *c, const char *fname, int flags, mode_t mode) {
   return fn(c, fname, flags, mode);
 }
 
+ssize_t my_smbc_read(SMBCCTX *c, SMBCFILE *file, void *buf, size_t count) {
+  smbc_read_fn fn = smbc_getFunctionRead(c);
+  return fn(c, file, buf, count);
+}
+
 void my_smbc_close(SMBCCTX *c, SMBCFILE *f) {
   smbc_close_fn fn = smbc_getFunctionClose(c);
-  return fn(c, f);
+  fn(c, f);
 }
 
 */
-import (
-	"C"
-	"unsafe"
-)
+import "C" // DO NOT CHANGE THE POSITION OF THIS IMPORT
 
 type Dirent struct {
 	/** Type of entity.
@@ -78,6 +84,23 @@ func (c *Client) SetDebug(level int)  {
 	C.smbc_setDebug(c.ctx, C.int(level));
 }
 
+func (c *Client) GetUser() string {
+	return C.GoString(C.smbc_getUser(c.ctx))
+}
+
+func (c *Client) SetUser(user string) {
+	C.smbc_setUser(c.ctx, C.CString(user))
+}
+
+func (c *Client) GetWorkgroup() string {
+	return C.GoString(C.smbc_getWorkgroup(c.ctx))
+}
+
+func (c *Client) SetWorkgroup(wg string) {
+	C.smbc_setWorkgroup(c.ctx, C.CString(wg))
+}
+
+// FIXME: use "NewClient" here (or something)
 func (c *Client) Init() {
 	c.ctx = C.smbc_new_context();
 	C.smbc_init_context(c.ctx)
@@ -93,22 +116,30 @@ func (c *Client) Closedir(dir File) error {
 	return err
 }
 
-func (c *Client) Readdir(dir File) (Dirent, error) {
+func (c *Client) Readdir(dir File) (*Dirent, error) {
 	c_dirent, err := C.my_smbc_readdir(c.ctx, dir.smbcfile)
+	if c_dirent == nil {
+		return nil, errors.New("dirent NULL")
+	}
 	dirent := Dirent{Type: int(c_dirent.smbc_type),
 		         Comment: C.GoString(c_dirent.comment),
 		         Name: C.GoString(&c_dirent.name[0])}
-	return dirent, err
+	return &dirent, err
 }
 
 
 
 
 // FIXME: mode is actually "mode_t mode"
-func (c *Client) Open(furl string, flags int, mode int) (int, error) {
+func (c *Client) Open(furl string, flags int, mode int) (File, error) {
 	cs := C.CString(furl)
 	sf, err := C.my_smbc_open(c.ctx, cs, C.int(flags), C.mode_t(mode))
 	return 	File{smbcfile: sf}, err
+}
+
+func (c *Client) Read(f File, buf []byte) (int, error) {
+	c_count, err := C.my_smbc_read(c.ctx, f.smbcfile, unsafe.Pointer(&buf[0]), C.size_t(len(buf)))
+	return int(c_count), err
 }
 
 func (c *Client) Close(f File) {
