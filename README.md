@@ -2,7 +2,16 @@ Go Bindings for libsmbclient
 ============================
 
 Bindings for the libsmbclient library from samba. To compile on
-debian/ubuntu install the "libsmbclient-dev" package.
+debian/ubuntu install the "libsmbclient-dev" package. 
+
+Build it with:
+```
+$ go build main.go
+$ ./main -show-dir smb://localhost
+```
+
+Check main.go for a code example.
+
 
 Example usage:
 --------------
