@@ -45,32 +45,35 @@ void my_smbc_close(SMBCCTX *c, SMBCFILE *f) {
 */
 import "C" // DO NOT CHANGE THE POSITION OF THIS IMPORT
 
+// SmbType
+type SmbcType int
+
+const (
+	SMBC_WORKGROUP     SmbcType = C.SMBC_WORKGROUP
+	SMBC_FILE_SHARE             = C.SMBC_FILE_SHARE
+	SMBC_PRINTER_SHARE          = C.SMBC_PRINTER_SHARE
+	SMBC_COMMS_SHARE            = C.SMBC_COMMS_SHARE
+	SMBC_IPC_SHARE              = C.SMBC_IPC_SHARE
+	SMBC_DIR                    = C.SMBC_DIR
+	SMBC_FILE                   = C.SMBC_FILE
+	SMBC_LINK                   = C.SMBC_LINK
+)
+
 type Dirent struct {
-	/** Type of entity.
-	  SMBC_WORKGROUP=1,
-	  SMBC_SERVER=2,
-	  SMBC_FILE_SHARE=3,
-	  SMBC_PRINTER_SHARE=4,
-	  SMBC_COMMS_SHARE=5,
-	  SMBC_IPC_SHARE=6,
-	  SMBC_DIR=7,
-	  SMBC_FILE=8,
-	  SMBC_LINK=9,*/
-	Type    int
+	Type    SmbcType
 	Comment string
 	Name    string
 }
 
+type File struct {
+	smbcfile *C.SMBCFILE
+}
 
 func New() *Client {
 	c := Client{}
 	c.ctx = C.smbc_new_context()
 	C.smbc_init_context(c.ctx)
 	return &c
-}
-
-type File struct {
-	smbcfile *C.SMBCFILE
 }
 
 // client interface
@@ -118,9 +121,9 @@ func (c *Client) Readdir(dir File) (*Dirent, error) {
 	if c_dirent == nil {
 		return nil, errors.New("dirent NULL")
 	}
-	dirent := Dirent{Type: int(c_dirent.smbc_type),
-		Comment: C.GoString(c_dirent.comment),
-		Name:    C.GoString(&c_dirent.name[0])}
+	dirent := Dirent{Type: SmbcType(c_dirent.smbc_type),
+		Comment: C.GoStringN(c_dirent.comment, C.int(c_dirent.commentlen)),
+		Name:    C.GoStringN(&c_dirent.name[0], C.int(c_dirent.namelen))}
 	return &dirent, err
 }
 
