@@ -7,41 +7,25 @@ import (
 
 /*
 #cgo LDFLAGS: -lsmbclient
-
-#include <libsmbclient.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
-SMBCFILE* my_smbc_opendir(SMBCCTX *c, const char *fname) {
-  smbc_opendir_fn fn = smbc_getFunctionOpendir(c);
-  return fn(c, fname);
-}
 
-int my_smbc_closedir(SMBCCTX *c, SMBCFILE *dir) {
-  smbc_closedir_fn fn = smbc_getFunctionClosedir(c);
-  return fn(c, dir);
-}
+#include <libsmbclient.h>
 
-struct smbc_dirent* my_smbc_readdir(SMBCCTX *c, SMBCFILE *dir) {
-  smbc_readdir_fn fn = smbc_getFunctionReaddir(c);
-  return fn(c, dir);
-}
-
-SMBCFILE* my_smbc_open(SMBCCTX *c, const char *fname, int flags, mode_t mode) {
-  smbc_open_fn fn = smbc_getFunctionOpen(c);
-  return fn(c, fname, flags, mode);
-}
-
-ssize_t my_smbc_read(SMBCCTX *c, SMBCFILE *file, void *buf, size_t count) {
-  smbc_read_fn fn = smbc_getFunctionRead(c);
-  return fn(c, file, buf, count);
-}
-
-void my_smbc_close(SMBCCTX *c, SMBCFILE *f) {
-  smbc_close_fn fn = smbc_getFunctionClose(c);
-  fn(c, f);
-}
-
+SMBCFILE* my_smbc_opendir(SMBCCTX *c, const char *fname);
+int my_smbc_closedir(SMBCCTX *c, SMBCFILE *dir);
+struct smbc_dirent* my_smbc_readdir(SMBCCTX *c, SMBCFILE *dir);
+SMBCFILE* my_smbc_open(SMBCCTX *c, const char *fname, int flags, mode_t mode);
+ssize_t my_smbc_read(SMBCCTX *c, SMBCFILE *file, void *buf, size_t count);
+void my_smbc_close(SMBCCTX *c, SMBCFILE *f);
+void my_smbc_auth_callback(SMBCCTX *context,
+               const char *server_name, const char *share_name,
+	       char *domain_out, int domainmaxlen,
+	       char *username_out, int unmaxlen,
+	       char *password_out, int pwmaxlen);
+void my_smbc_init_auth_callback(SMBCCTX *context);
 */
 import "C" // DO NOT CHANGE THE POSITION OF THIS IMPORT
 
@@ -69,16 +53,19 @@ type File struct {
 	smbcfile *C.SMBCFILE
 }
 
-func New() *Client {
-	c := Client{}
-	c.ctx = C.smbc_new_context()
-	C.smbc_init_context(c.ctx)
-	return &c
-}
+var Global_auth_callback = func(servername, sharename string)(domain, username, password string) {return "","",""}
 
 // client interface
 type Client struct {
 	ctx *C.SMBCCTX
+}
+
+func New() *Client {
+	c := Client{}
+	c.ctx = C.smbc_new_context()
+	C.smbc_init_context(c.ctx)
+	C.my_smbc_init_auth_callback(c.ctx)
+	return &c
 }
 
 // debug stuff
@@ -141,4 +128,13 @@ func (c *Client) Read(f File, buf []byte) (int, error) {
 
 func (c *Client) Close(f File) {
 	C.my_smbc_close(c.ctx, f.smbcfile)
+}
+
+
+//export GoAuthCallbackHelper
+func GoAuthCallbackHelper(server_name, share_name *C.char, domain_out *C.char, domain_len C.int, username_out *C.char, ulen C.int, password_out *C.char, pwlen C.int) {
+	domain, user, pw := Global_auth_callback(C.GoString(server_name), C.GoString(share_name))
+	C.strncpy(domain_out, C.CString(domain), C.size_t(domain_len))
+	C.strncpy(username_out, C.CString(user), C.size_t(ulen))
+	C.strncpy(password_out, C.CString(pw), C.size_t(pwlen))
 }
