@@ -1,4 +1,5 @@
 package libsmbclient
+
 import (
 	"errors"
 	"unsafe"
@@ -46,24 +47,26 @@ import "C" // DO NOT CHANGE THE POSITION OF THIS IMPORT
 
 type Dirent struct {
 	/** Type of entity.
-	    SMBC_WORKGROUP=1,
-	    SMBC_SERVER=2, 
-	    SMBC_FILE_SHARE=3,
-	    SMBC_PRINTER_SHARE=4,
-	    SMBC_COMMS_SHARE=5,
-	    SMBC_IPC_SHARE=6,
-	    SMBC_DIR=7,
-	    SMBC_FILE=8,
-	    SMBC_LINK=9,*/ 
-	Type int
+	  SMBC_WORKGROUP=1,
+	  SMBC_SERVER=2,
+	  SMBC_FILE_SHARE=3,
+	  SMBC_PRINTER_SHARE=4,
+	  SMBC_COMMS_SHARE=5,
+	  SMBC_IPC_SHARE=6,
+	  SMBC_DIR=7,
+	  SMBC_FILE=8,
+	  SMBC_LINK=9,*/
+	Type    int
 	Comment string
-	Name string
+	Name    string
 }
 
-// Global init
-func Init(debug int) error {
-	_, err := C.smbc_init(nil, C.int(debug))
-	return err
+
+func New() *Client {
+	c := Client{}
+	c.ctx = C.smbc_new_context()
+	C.smbc_init_context(c.ctx)
+	return &c
 }
 
 type File struct {
@@ -77,11 +80,11 @@ type Client struct {
 
 // debug stuff
 func (c *Client) GetDebug() int {
-	return int(C.smbc_getDebug(c.ctx));
+	return int(C.smbc_getDebug(c.ctx))
 }
 
-func (c *Client) SetDebug(level int)  {
-	C.smbc_setDebug(c.ctx, C.int(level));
+func (c *Client) SetDebug(level int) {
+	C.smbc_setDebug(c.ctx, C.int(level))
 }
 
 func (c *Client) GetUser() string {
@@ -100,13 +103,7 @@ func (c *Client) SetWorkgroup(wg string) {
 	C.smbc_setWorkgroup(c.ctx, C.CString(wg))
 }
 
-// FIXME: use "NewClient" here (or something)
-func (c *Client) Init() {
-	c.ctx = C.smbc_new_context();
-	C.smbc_init_context(c.ctx)
-}
-
-func  (c *Client) Opendir(durl string) (File, error) {
+func (c *Client) Opendir(durl string) (File, error) {
 	d, err := C.my_smbc_opendir(c.ctx, C.CString(durl))
 	return File{d}, err
 }
@@ -122,19 +119,16 @@ func (c *Client) Readdir(dir File) (*Dirent, error) {
 		return nil, errors.New("dirent NULL")
 	}
 	dirent := Dirent{Type: int(c_dirent.smbc_type),
-		         Comment: C.GoString(c_dirent.comment),
-		         Name: C.GoString(&c_dirent.name[0])}
+		Comment: C.GoString(c_dirent.comment),
+		Name:    C.GoString(&c_dirent.name[0])}
 	return &dirent, err
 }
-
-
-
 
 // FIXME: mode is actually "mode_t mode"
 func (c *Client) Open(furl string, flags int, mode int) (File, error) {
 	cs := C.CString(furl)
 	sf, err := C.my_smbc_open(c.ctx, cs, C.int(flags), C.mode_t(mode))
-	return 	File{smbcfile: sf}, err
+	return File{smbcfile: sf}, err
 }
 
 func (c *Client) Read(f File, buf []byte) (int, error) {
@@ -145,5 +139,3 @@ func (c *Client) Read(f File, buf []byte) (int, error) {
 func (c *Client) Close(f File) {
 	C.my_smbc_close(c.ctx, f.smbcfile)
 }
-
-
