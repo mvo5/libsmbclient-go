@@ -2,6 +2,7 @@ package libsmbclient
 
 import (
 	"errors"
+	"runtime"
 	"unsafe"
 )
 
@@ -65,14 +66,22 @@ func New() *Client {
 	c := Client{}
 	c.ctx = C.smbc_new_context()
 	C.smbc_init_context(c.ctx)
+	// dear golang team, can I haz a auto-finalizer
+	runtime.SetFinalizer(&c, func(c *Client) { 
+		c.Destroy()
+	})
 	// FIXME: move this into a seperate function
 	C.my_smbc_init_auth_callback(c.ctx)
 	return &c
 }
 
 func (c *Client) Destroy() error {
-	// 1 would mean we force the destroy
-	_, err := C.smbc_free_context(c.ctx, C.int(0))
+	var err error
+	if c.ctx != nil {
+		// 1 would mean we force the destroy
+		_, err = C.smbc_free_context(c.ctx, C.int(1))
+		c.ctx = nil
+	}
 	return err
 }
 
