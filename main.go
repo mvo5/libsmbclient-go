@@ -14,6 +14,7 @@ import (
 
 func openSmbdir(duri string) {
 	client := libsmbclient.New()
+	defer client.Destroy()
 	//client.SetDebug(99)
 
 	dh, err := client.Opendir(duri)
@@ -32,6 +33,7 @@ func openSmbdir(duri string) {
 
 func openSmbfile(furi string) {
 	client := libsmbclient.New()
+	defer client.Destroy()
 
 	f, err := client.Open(furi, 0, 0)
 	if err != nil {

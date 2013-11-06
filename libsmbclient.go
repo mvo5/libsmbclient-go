@@ -53,7 +53,7 @@ type File struct {
 	smbcfile *C.SMBCFILE
 }
 
-var Global_auth_callback = func(servername, sharename string)(domain, username, password string) {return "","",""}
+var Global_auth_callback = func(servername, sharename string)(domain, username, password string) { return "", "", "" }
 
 // client interface
 type Client struct {
@@ -64,8 +64,15 @@ func New() *Client {
 	c := Client{}
 	c.ctx = C.smbc_new_context()
 	C.smbc_init_context(c.ctx)
+	// FIXME: move this into a seperate function
 	C.my_smbc_init_auth_callback(c.ctx)
 	return &c
+}
+
+func (c *Client) Destroy() error {
+	// 1 would mean we force the destroy
+	_, err := C.smbc_free_context(c.ctx, C.int(0))
+	return err
 }
 
 // debug stuff
