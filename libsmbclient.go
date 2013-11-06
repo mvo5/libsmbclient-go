@@ -26,6 +26,7 @@ void my_smbc_auth_callback(SMBCCTX *context,
 	       char *username_out, int unmaxlen,
 	       char *password_out, int pwmaxlen);
 void my_smbc_init_auth_callback(SMBCCTX *context);
+off_t my_smbc_lseek(SMBCCTX *c, SMBCFILE * file, off_t offset, int whence);
 */
 import "C" // DO NOT CHANGE THE POSITION OF THIS IMPORT
 
@@ -75,7 +76,7 @@ func (c *Client) Destroy() error {
 	return err
 }
 
-// debug stuff
+// options
 func (c *Client) GetDebug() int {
 	return int(C.smbc_getDebug(c.ctx))
 }
@@ -100,6 +101,9 @@ func (c *Client) SetWorkgroup(wg string) {
 	C.smbc_setWorkgroup(c.ctx, C.CString(wg))
 }
 
+
+// dir stuff
+
 func (c *Client) Opendir(durl string) (File, error) {
 	d, err := C.my_smbc_opendir(c.ctx, C.CString(durl))
 	return File{d}, err
@@ -121,6 +125,8 @@ func (c *Client) Readdir(dir File) (*Dirent, error) {
 	return &dirent, err
 }
 
+// file stuff
+
 // FIXME: mode is actually "mode_t mode"
 func (c *Client) Open(furl string, flags int, mode int) (File, error) {
 	cs := C.CString(furl)
@@ -131,6 +137,11 @@ func (c *Client) Open(furl string, flags int, mode int) (File, error) {
 func (c *Client) Read(f File, buf []byte) (int, error) {
 	c_count, err := C.my_smbc_read(c.ctx, f.smbcfile, unsafe.Pointer(&buf[0]), C.size_t(len(buf)))
 	return int(c_count), err
+}
+
+func (c *Client) Lseek(f File, offset, whence int) (int, error) {
+	new_offset, err := C.my_smbc_lseek(c.ctx, f.smbcfile, C.off_t(offset), C.int(whence))
+	return int(new_offset), err
 }
 
 func (c *Client) Close(f File) {

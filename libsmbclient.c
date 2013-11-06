@@ -27,6 +27,11 @@ ssize_t my_smbc_read(SMBCCTX *c, SMBCFILE *file, void *buf, size_t count) {
   return fn(c, file, buf, count);
 }
 
+off_t my_smbc_lseek(SMBCCTX *c, SMBCFILE * file, off_t offset, int whence) {
+  smbc_lseek_fn fn = smbc_getFunctionLseek(c);
+  return fn(c, file, offset, whence);
+}
+
 void my_smbc_close(SMBCCTX *c, SMBCFILE *f) {
   smbc_close_fn fn = smbc_getFunctionClose(c);
   fn(c, f);
