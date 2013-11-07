@@ -38,18 +38,27 @@ void my_smbc_close(SMBCCTX *c, SMBCFILE *f) {
 }
 
 
+// the auth callback releated stuff, its a bit complicated 
 extern void 
-GoAuthCallbackHelper(char *, char *, char *, int, char *, int, char *, int);
-void my_smbc_auth_callback(SMBCCTX *context,
+GoAuthCallbackHelper(void *ctx, char *server_name, char *domain_name, 
+                     char *domain_out, int domainmaxlen, 
+                     char *username_out, int unmaxlen, 
+                     char *password_out, int pwmaxlen);
+void my_smbc_auth_callback(SMBCCTX *ctx,
 	       const char *server_name, const char *share_name,
 	       char *domain_out, int domainmaxlen,
 	       char *username_out, int unmaxlen,
 	       char *password_out, int pwmaxlen) {
-   GoAuthCallbackHelper((char*)server_name, (char*)share_name, domain_out,  domainmaxlen, username_out, unmaxlen, password_out, pwmaxlen);
-   //FIXME: check {domain,u,pw}maxlen
+   void *go_fn = smbc_getOptionUserData(ctx);
+   GoAuthCallbackHelper(go_fn, 
+                        (char*)server_name, (char*)share_name, 
+                        domain_out,  domainmaxlen, 
+                        username_out, unmaxlen, 
+                        password_out, pwmaxlen);
 }
 
-void my_smbc_init_auth_callback(SMBCCTX *ctx)
+void my_smbc_init_auth_callback(SMBCCTX *ctx, void *go_fn)
 {
+   smbc_setOptionUserData(ctx, go_fn);
    smbc_setFunctionAuthDataWithContext(ctx, my_smbc_auth_callback);
 }

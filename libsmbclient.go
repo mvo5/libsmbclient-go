@@ -26,7 +26,7 @@ void my_smbc_auth_callback(SMBCCTX *context,
 	       char *domain_out, int domainmaxlen,
 	       char *username_out, int unmaxlen,
 	       char *password_out, int pwmaxlen);
-void my_smbc_init_auth_callback(SMBCCTX *context);
+void my_smbc_init_auth_callback(SMBCCTX *context, void *go_fn);
 off_t my_smbc_lseek(SMBCCTX *c, SMBCFILE * file, off_t offset, int whence);
 */
 import "C" // DO NOT CHANGE THE POSITION OF THIS IMPORT
@@ -55,8 +55,6 @@ type File struct {
 	smbcfile *C.SMBCFILE
 }
 
-var Global_auth_callback = func(servername, sharename string)(domain, username, password string) { return "", "", "" }
-
 // client interface
 type Client struct {
 	ctx *C.SMBCCTX
@@ -70,8 +68,6 @@ func New() *Client {
 	runtime.SetFinalizer(&c, func(c *Client) { 
 		c.Destroy()
 	})
-	// FIXME: move this into a seperate function
-	C.my_smbc_init_auth_callback(c.ctx)
 	return &c
 }
 
@@ -83,6 +79,13 @@ func (c *Client) Destroy() error {
 		c.ctx = nil
 	}
 	return err
+}
+
+// authentication callback, this expects a go callback function 
+// with the signature:
+//  func(server_name, share_name) (domain, username, password)
+func (c *Client) SetAuthCallback(fn func(string,string)(string,string,string)) {
+	C.my_smbc_init_auth_callback(c.ctx, unsafe.Pointer(&fn))
 }
 
 // options
@@ -159,8 +162,9 @@ func (c *Client) Close(f File) {
 
 
 //export GoAuthCallbackHelper
-func GoAuthCallbackHelper(server_name, share_name *C.char, domain_out *C.char, domain_len C.int, username_out *C.char, ulen C.int, password_out *C.char, pwlen C.int) {
-	domain, user, pw := Global_auth_callback(C.GoString(server_name), C.GoString(share_name))
+func GoAuthCallbackHelper(fn unsafe.Pointer, server_name, share_name *C.char, domain_out *C.char, domain_len C.int, username_out *C.char, ulen C.int, password_out *C.char, pwlen C.int) {
+	go_fn := *(*func(server_name, share_name string)(string, string, string))(fn)
+	domain, user, pw := go_fn(C.GoString(server_name), C.GoString(share_name))
 	C.strncpy(domain_out, C.CString(domain), C.size_t(domain_len))
 	C.strncpy(username_out, C.CString(user), C.size_t(ulen))
 	C.strncpy(password_out, C.CString(pw), C.size_t(pwlen))
