@@ -151,24 +151,24 @@ func (dir *File) Readdir() (*Dirent, error) {
 func (c *Client) Open(furl string, flags int, mode int) (File, error) {
 	cs := C.CString(furl)
 	sf, err := C.my_smbc_open(c.ctx, cs, C.int(flags), C.mode_t(mode))
-	return File{smbcfile: sf}, err
+	return File{ctx: c.ctx, smbcfile: sf}, err
 }
 
-func (c *Client) Read(f File, buf []byte) (int, error) {
-	c_count, err := C.my_smbc_read(c.ctx, f.smbcfile, unsafe.Pointer(&buf[0]), C.size_t(len(buf)))
+func (f *File) Read(buf []byte) (int, error) {
+	c_count, err := C.my_smbc_read(f.ctx, f.smbcfile, unsafe.Pointer(&buf[0]), C.size_t(len(buf)))
 	if c_count == 0 && err == nil {
 		return 0, io.EOF
 	}
 	return int(c_count), err
 }
 
-func (c *Client) Lseek(f File, offset, whence int) (int, error) {
-	new_offset, err := C.my_smbc_lseek(c.ctx, f.smbcfile, C.off_t(offset), C.int(whence))
+func (f *File) Lseek(offset, whence int) (int, error) {
+	new_offset, err := C.my_smbc_lseek(f.ctx, f.smbcfile, C.off_t(offset), C.int(whence))
 	return int(new_offset), err
 }
 
-func (c *Client) Close(f File) {
-	C.my_smbc_close(c.ctx, f.smbcfile)
+func (f *File) Close() {
+	C.my_smbc_close(f.ctx, f.smbcfile)
 }
 
 // INTERNAL use only

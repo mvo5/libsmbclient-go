@@ -36,7 +36,7 @@ func openSmbfile(client *libsmbclient.Client, furi string) {
 	}
 	buf := make([]byte, 1024)
 	for {
-		_, err := client.Read(f, buf)
+		_, err := f.Read(buf)
 		if err == io.EOF {
 			break
 		}
@@ -45,7 +45,7 @@ func openSmbfile(client *libsmbclient.Client, furi string) {
 		}
 		fmt.Print(string(buf))
 	}
-	client.Close(f)
+	f.Close()
 }
 
 func setEcho(terminal_echo_enabled bool) {
