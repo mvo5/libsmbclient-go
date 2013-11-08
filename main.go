@@ -20,13 +20,13 @@ func openSmbdir(client *libsmbclient.Client, duri string) {
 		log.Fatal(err)
 	}
 	for {
-		dirent, err := client.Readdir(dh)
+		dirent, err := dh.Readdir()
 		if err != nil {
 			break
 		}
 		fmt.Println(dirent)
 	}
-	client.Closedir(dh)
+	dh.Closedir()
 }
 
 func openSmbfile(client *libsmbclient.Client, furi string) {

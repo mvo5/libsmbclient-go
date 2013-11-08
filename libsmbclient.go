@@ -4,7 +4,6 @@ import (
 	"io"
 	"runtime"
 	"unsafe"
-	"fmt"
 )
 
 /*
@@ -53,6 +52,7 @@ type Dirent struct {
 }
 
 type File struct {
+	ctx *C.SMBCCTX
 	smbcfile *C.SMBCFILE
 }
 
@@ -123,16 +123,16 @@ func (c *Client) SetWorkgroup(wg string) {
 
 func (c *Client) Opendir(durl string) (File, error) {
 	d, err := C.my_smbc_opendir(c.ctx, C.CString(durl))
-	return File{d}, err
+	return File{c.ctx, d}, err
 }
 
-func (c *Client) Closedir(dir File) error {
-	_, err := C.my_smbc_closedir(c.ctx, dir.smbcfile)
+func (dir *File) Closedir() error {
+	_, err := C.my_smbc_closedir(dir.ctx, dir.smbcfile)
 	return err
 }
 
-func (c *Client) Readdir(dir File) (*Dirent, error) {
-	c_dirent, err := C.my_smbc_readdir(c.ctx, dir.smbcfile)
+func (dir *File) Readdir() (*Dirent, error) {
+	c_dirent, err := C.my_smbc_readdir(dir.ctx, dir.smbcfile)
 	if err != nil {
 		return nil, err
 	}
