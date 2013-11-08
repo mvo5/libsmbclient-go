@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"flag"
 	"os"
+	"os/exec"
 	"bufio"
 	"strings"
+	"io"
 )
 
 func openSmbdir(client *libsmbclient.Client, duri string) {
@@ -34,16 +36,26 @@ func openSmbfile(client *libsmbclient.Client, furi string) {
 	}
 	buf := make([]byte, 1024)
 	for {
-		n, err := client.Read(f, buf)
+		_, err := client.Read(f, buf)
+		if err == io.EOF {
+			break
+		}
 		if err != nil {
 			log.Fatal(err)
-		}
-		if n == 0 {
-			break
 		}
 		fmt.Print(string(buf))
 	}
 	client.Close(f)
+}
+
+func setEcho(terminal_echo_enabled bool) {
+	var cmd *exec.Cmd
+	if terminal_echo_enabled {
+		cmd = exec.Command("stty",  "-F", "/dev/tty", "echo")
+	} else  {
+		cmd = exec.Command("stty",  "-F", "/dev/tty", "-echo")
+	}
+	cmd.Run()
 }
 
 func main() {
@@ -58,8 +70,10 @@ func main() {
 	fn := func(server_name, share_name string)(domain, username, password string) {
 		fmt.Printf("auth for %s %s: ", server_name, share_name)
 		// read pw from stdin
+		setEcho(false)
 		bio := bufio.NewReader(os.Stdin)
 		pw, _, _ := bio.ReadLine()
+		setEcho(true)
 		return "URT", "vogtm", strings.TrimSpace(string(pw))
 	}
 	client.SetAuthCallback(fn)
