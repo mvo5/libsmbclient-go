@@ -2,6 +2,7 @@ package libsmbclient
 
 import (
 	"errors"
+	"io"
 	"runtime"
 	"unsafe"
 )
@@ -152,6 +153,9 @@ func (c *Client) Open(furl string, flags int, mode int) (File, error) {
 
 func (c *Client) Read(f File, buf []byte) (int, error) {
 	c_count, err := C.my_smbc_read(c.ctx, f.smbcfile, unsafe.Pointer(&buf[0]), C.size_t(len(buf)))
+	if c_count == 0 && err == nil {
+		return 0, io.EOF
+	}
 	return int(c_count), err
 }
 
@@ -164,7 +168,7 @@ func (c *Client) Close(f File) {
 	C.my_smbc_close(c.ctx, f.smbcfile)
 }
 
-
+// INTERNAL use only
 //export GoAuthCallbackHelper
 func GoAuthCallbackHelper(fn unsafe.Pointer, server_name, share_name *C.char, domain_out *C.char, domain_len C.int, username_out *C.char, ulen C.int, password_out *C.char, pwlen C.int) {
 	go_fn := *(*func(server_name, share_name string)(string, string, string))(fn)
