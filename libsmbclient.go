@@ -58,6 +58,7 @@ type File struct {
 // client interface
 type Client struct {
 	ctx *C.SMBCCTX
+	authCallback *func(string, string)(string, string, string)
 }
 
 func New() *Client {
@@ -86,6 +87,9 @@ func (c *Client) Destroy() error {
 //  func(server_name, share_name) (domain, username, password)
 func (c *Client) SetAuthCallback(fn func(string,string)(string,string,string)) {
 	C.my_smbc_init_auth_callback(c.ctx, unsafe.Pointer(&fn))
+	// we need to store it in the Client struct to ensure its not garbage
+	// collected later (I think)
+	c.authCallback = &fn
 }
 
 // options
