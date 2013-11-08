@@ -1,10 +1,10 @@
 package libsmbclient
 
 import (
-	"errors"
 	"io"
 	"runtime"
 	"unsafe"
+	"fmt"
 )
 
 /*
@@ -133,8 +133,11 @@ func (c *Client) Closedir(dir File) error {
 
 func (c *Client) Readdir(dir File) (*Dirent, error) {
 	c_dirent, err := C.my_smbc_readdir(c.ctx, dir.smbcfile)
+	if err != nil {
+		return nil, err
+	}
 	if c_dirent == nil {
-		return nil, errors.New("dirent NULL")
+		return nil, io.EOF
 	}
 	dirent := Dirent{Type: SmbcType(c_dirent.smbc_type),
 		Comment: C.GoStringN(c_dirent.comment, C.int(c_dirent.commentlen)),
