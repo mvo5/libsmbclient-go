@@ -127,8 +127,12 @@ func (c *Client) Opendir(durl string) (File, error) {
 }
 
 func (dir *File) Closedir() error {
-	_, err := C.my_smbc_closedir(dir.ctx, dir.smbcfile)
-	return err
+	if dir.smbcfile != nil {
+		_, err := C.my_smbc_closedir(dir.ctx, dir.smbcfile)
+		dir.smbcfile = nil
+		return err
+	}
+	return nil
 }
 
 func (dir *File) Readdir() (*Dirent, error) {
@@ -168,7 +172,10 @@ func (f *File) Lseek(offset, whence int) (int, error) {
 }
 
 func (f *File) Close() {
-	C.my_smbc_close(f.ctx, f.smbcfile)
+	if f.smbcfile != nil {
+		C.my_smbc_close(f.ctx, f.smbcfile)
+		f.smbcfile = nil
+	}
 }
 
 // INTERNAL use only
