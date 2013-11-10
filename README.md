@@ -13,6 +13,13 @@ $ ./main -show-dir smb://localhost
 
 Check main.go for a code example.
 
+Limitation:
+-----------
+
+libsmbclient is not thread safe, so all
+smbclient.Client/smbclient.File operations are serialized (i.e. there
+can only be one operation at a time for each Client/File).
+
 
 Example usage:
 --------------

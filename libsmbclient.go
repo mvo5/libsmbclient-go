@@ -3,6 +3,7 @@ package libsmbclient
 import (
 	"io"
 	"runtime"
+	"sync"
 	"unsafe"
 )
 
@@ -51,15 +52,20 @@ type Dirent struct {
 	Name    string
 }
 
+// File wrapper
 type File struct {
 	ctx *C.SMBCCTX
 	smbcfile *C.SMBCFILE
+	// libsmbclient is not thread safe
+	lock sync.Mutex
 }
 
 // client interface
 type Client struct {
 	ctx *C.SMBCCTX
 	authCallback *func(string, string)(string, string, string)
+	// libsmbclient is not thread safe
+	lock sync.Mutex
 }
 
 func New() *Client {
@@ -74,6 +80,12 @@ func New() *Client {
 }
 
 func (c *Client) Destroy() error {
+	// FIXME: is there a more elegant way for this c.lock.Lock() that
+	//        needs to be part of every function? python decorator to
+	//        the rescue :)
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
 	var err error
 	if c.ctx != nil {
 		// 1 would mean we force the destroy
@@ -87,6 +99,9 @@ func (c *Client) Destroy() error {
 // with the signature:
 //  func(server_name, share_name) (domain, username, password)
 func (c *Client) SetAuthCallback(fn func(string,string)(string,string,string)) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
 	C.my_smbc_init_auth_callback(c.ctx, unsafe.Pointer(&fn))
 	// we need to store it in the Client struct to ensure its not garbage
 	// collected later (I think)
@@ -95,26 +110,44 @@ func (c *Client) SetAuthCallback(fn func(string,string)(string,string,string)) {
 
 // options
 func (c *Client) GetDebug() int {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
 	return int(C.smbc_getDebug(c.ctx))
 }
 
 func (c *Client) SetDebug(level int) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
 	C.smbc_setDebug(c.ctx, C.int(level))
 }
 
 func (c *Client) GetUser() string {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
 	return C.GoString(C.smbc_getUser(c.ctx))
 }
 
 func (c *Client) SetUser(user string) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
 	C.smbc_setUser(c.ctx, C.CString(user))
 }
 
 func (c *Client) GetWorkgroup() string {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
 	return C.GoString(C.smbc_getWorkgroup(c.ctx))
 }
 
 func (c *Client) SetWorkgroup(wg string) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
 	C.smbc_setWorkgroup(c.ctx, C.CString(wg))
 }
 
@@ -122,11 +155,17 @@ func (c *Client) SetWorkgroup(wg string) {
 // dir stuff
 
 func (c *Client) Opendir(durl string) (File, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
 	d, err := C.my_smbc_opendir(c.ctx, C.CString(durl))
-	return File{c.ctx, d}, err
+	return File{ctx: c.ctx, smbcfile: d}, err
 }
 
 func (dir *File) Closedir() error {
+	dir.lock.Lock()
+	defer dir.lock.Unlock()
+
 	if dir.smbcfile != nil {
 		_, err := C.my_smbc_closedir(dir.ctx, dir.smbcfile)
 		dir.smbcfile = nil
@@ -136,6 +175,9 @@ func (dir *File) Closedir() error {
 }
 
 func (dir *File) Readdir() (*Dirent, error) {
+	dir.lock.Lock()
+	defer dir.lock.Unlock()
+
 	c_dirent, err := C.my_smbc_readdir(dir.ctx, dir.smbcfile)
 	if err != nil {
 		return nil, err
@@ -153,12 +195,18 @@ func (dir *File) Readdir() (*Dirent, error) {
 
 // FIXME: mode is actually "mode_t mode"
 func (c *Client) Open(furl string, flags int, mode int) (File, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
 	cs := C.CString(furl)
 	sf, err := C.my_smbc_open(c.ctx, cs, C.int(flags), C.mode_t(mode))
 	return File{ctx: c.ctx, smbcfile: sf}, err
 }
 
 func (f *File) Read(buf []byte) (int, error) {
+	f.lock.Lock()
+	defer f.lock.Unlock()
+
 	c_count, err := C.my_smbc_read(f.ctx, f.smbcfile, unsafe.Pointer(&buf[0]), C.size_t(len(buf)))
 	if c_count == 0 && err == nil {
 		return 0, io.EOF
@@ -167,11 +215,17 @@ func (f *File) Read(buf []byte) (int, error) {
 }
 
 func (f *File) Lseek(offset, whence int) (int, error) {
+	f.lock.Lock()
+	defer f.lock.Unlock()
+
 	new_offset, err := C.my_smbc_lseek(f.ctx, f.smbcfile, C.off_t(offset), C.int(whence))
 	return int(new_offset), err
 }
 
 func (f *File) Close() {
+	f.lock.Lock()
+	defer f.lock.Unlock()
+
 	if f.smbcfile != nil {
 		C.my_smbc_close(f.ctx, f.smbcfile)
 		f.smbcfile = nil
