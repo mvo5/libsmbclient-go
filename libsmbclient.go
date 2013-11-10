@@ -52,20 +52,18 @@ type Dirent struct {
 	Name    string
 }
 
-// File wrapper
-type File struct {
-	ctx *C.SMBCCTX
-	smbcfile *C.SMBCFILE
-	// libsmbclient is not thread safe
-	lock sync.Mutex
-}
-
 // client interface
 type Client struct {
 	ctx *C.SMBCCTX
 	authCallback *func(string, string)(string, string, string)
 	// libsmbclient is not thread safe
 	lock sync.Mutex
+}
+
+// File wrapper
+type File struct {
+	client *Client
+	smbcfile *C.SMBCFILE
 }
 
 func New() *Client {
@@ -159,15 +157,15 @@ func (c *Client) Opendir(durl string) (File, error) {
 	defer c.lock.Unlock()
 
 	d, err := C.my_smbc_opendir(c.ctx, C.CString(durl))
-	return File{ctx: c.ctx, smbcfile: d}, err
+	return File{client: c, smbcfile: d}, err
 }
 
 func (dir *File) Closedir() error {
-	dir.lock.Lock()
-	defer dir.lock.Unlock()
+	dir.client.lock.Lock()
+	defer dir.client.lock.Unlock()
 
 	if dir.smbcfile != nil {
-		_, err := C.my_smbc_closedir(dir.ctx, dir.smbcfile)
+		_, err := C.my_smbc_closedir(dir.client.ctx, dir.smbcfile)
 		dir.smbcfile = nil
 		return err
 	}
@@ -175,10 +173,10 @@ func (dir *File) Closedir() error {
 }
 
 func (dir *File) Readdir() (*Dirent, error) {
-	dir.lock.Lock()
-	defer dir.lock.Unlock()
+	dir.client.lock.Lock()
+	defer dir.client.lock.Unlock()
 
-	c_dirent, err := C.my_smbc_readdir(dir.ctx, dir.smbcfile)
+	c_dirent, err := C.my_smbc_readdir(dir.client.ctx, dir.smbcfile)
 	if err != nil {
 		return nil, err
 	}
@@ -200,14 +198,14 @@ func (c *Client) Open(furl string, flags int, mode int) (File, error) {
 
 	cs := C.CString(furl)
 	sf, err := C.my_smbc_open(c.ctx, cs, C.int(flags), C.mode_t(mode))
-	return File{ctx: c.ctx, smbcfile: sf}, err
+	return File{client: c, smbcfile: sf}, err
 }
 
 func (f *File) Read(buf []byte) (int, error) {
-	f.lock.Lock()
-	defer f.lock.Unlock()
+	f.client.lock.Lock()
+	defer f.client.lock.Unlock()
 
-	c_count, err := C.my_smbc_read(f.ctx, f.smbcfile, unsafe.Pointer(&buf[0]), C.size_t(len(buf)))
+	c_count, err := C.my_smbc_read(f.client.ctx, f.smbcfile, unsafe.Pointer(&buf[0]), C.size_t(len(buf)))
 	if c_count == 0 && err == nil {
 		return 0, io.EOF
 	}
@@ -215,19 +213,19 @@ func (f *File) Read(buf []byte) (int, error) {
 }
 
 func (f *File) Lseek(offset, whence int) (int, error) {
-	f.lock.Lock()
-	defer f.lock.Unlock()
+	f.client.lock.Lock()
+	defer f.client.lock.Unlock()
 
-	new_offset, err := C.my_smbc_lseek(f.ctx, f.smbcfile, C.off_t(offset), C.int(whence))
+	new_offset, err := C.my_smbc_lseek(f.client.ctx, f.smbcfile, C.off_t(offset), C.int(whence))
 	return int(new_offset), err
 }
 
 func (f *File) Close() {
-	f.lock.Lock()
-	defer f.lock.Unlock()
+	f.client.lock.Lock()
+	defer f.client.lock.Unlock()
 
 	if f.smbcfile != nil {
-		C.my_smbc_close(f.ctx, f.smbcfile)
+		C.my_smbc_close(f.client.ctx, f.smbcfile)
 		f.smbcfile = nil
 	}
 }
