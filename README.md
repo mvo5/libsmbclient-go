@@ -16,9 +16,10 @@ Check main.go for a code example.
 Limitation:
 -----------
 
-libsmbclient is not thread safe, so all
+The C libsmbclient from samba is not thread safe, so all go
 smbclient.Client/smbclient.File operations are serialized (i.e. there
-can only be one operation at a time for each Client/File).
+can only be one operation at a time for each Client/File). As a 
+workaround you should create one smbclient.Client per goroutine.
 
 
 Example usage:
