@@ -106,15 +106,6 @@ func tearDown() {
 	teardown = []func(){}
 }
 
-func sliceContains(slice []string, needle string) bool {
-	for _, d := range(slice) {
-		if d == needle {
-			return true
-		}
-	}
-	return false
-}
-
 func TestLibsmbclientBindings(t *testing.T) {
 	fmt.Println("libsmbclient opendir test")
 
@@ -128,19 +119,17 @@ func TestLibsmbclientBindings(t *testing.T) {
 	}
 	
 	// collect dirs
-	foundSmbDirs := make([]string, 10)
+	foundSmbDirs := map[string]bool{}
 	for {
 		dirent, err := d.Readdir()
 		if err != nil {
 			break
 		}
-		foundSmbDirs = append(foundSmbDirs, dirent.Name)
+		foundSmbDirs[dirent.Name] = true
 	}
 	// check for expected data
-	for _, needle := range([]string{"private", "public"}) {
-		if !sliceContains(foundSmbDirs, needle) {
-			t.Error("missing 'public' folder (%v)", foundSmbDirs)
-		}
+	if !foundSmbDirs["private"] || !foundSmbDirs["public"] {
+		t.Error(fmt.Sprintf("missing excpected folder in (%v)", foundSmbDirs))
 	}
 
 	tearDown()
