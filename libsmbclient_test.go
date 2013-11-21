@@ -173,8 +173,8 @@ func TestLibsmbclientThreaded(t *testing.T) {
 
 	setUp()
 
-	THREADS := 2
-	FILE_SIZE := 16*1024
+	THREADS := 25
+	FILE_SIZE := 4*1024
 
 	// create a bunch of test files
 	buf := make([]byte, FILE_SIZE)
@@ -186,13 +186,14 @@ func TestLibsmbclientThreaded(t *testing.T) {
 	// open client
 	baseDir := "smb://localhost/public/"
 	client := New()
+	defer client.Close()
+
 	d, err := client.Opendir(baseDir)
 	if err != nil {
 		t.Error("failed to open localhost ", err)
 	}
 	// read all files threaded
 	c := make(chan int)
-	count := 0
 	for {
 		dirent, err := d.Readdir()
 		if err != nil {
@@ -202,10 +203,12 @@ func TestLibsmbclientThreaded(t *testing.T) {
 			go openFile(client, baseDir+dirent.Name, c)
 		}
 	}
-	
+
+	count := 0	
 	for count < THREADS {
 		count += <- c
 	}
 
+	fmt.Println("done")
 	tearDown()
 }

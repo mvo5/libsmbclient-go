@@ -2,7 +2,6 @@ package libsmbclient
 
 import (
 	"io"
-	"runtime"
 	"sync"
 	"unsafe"
 )
@@ -67,17 +66,24 @@ type File struct {
 }
 
 func New() *Client {
-	c := Client{}
-	c.ctx = C.smbc_new_context()
+	c := &Client{ctx: C.smbc_new_context()}
 	C.smbc_init_context(c.ctx)
-	// dear golang team, can I haz a auto-finalizer
-	runtime.SetFinalizer(&c, func(c *Client) { 
-		c.Destroy()
+	// this does not work reliable, see TestLibsmbclientThreaded test
+/*
+	runtime.SetFinalizer(c, func(c2 *Client) {
+		fmt.Println(fmt.Sprintf("d: %v", c2))
+		c2.Close()
 	})
-	return &c
+*/
+
+	return c
 }
 
 func (c *Client) Destroy() error {
+	return c.Close()
+}
+
+func (c *Client) Close() error {
 	// FIXME: is there a more elegant way for this c.lock.Lock() that
 	//        needs to be part of every function? python decorator to
 	//        the rescue :)
