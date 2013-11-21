@@ -141,13 +141,13 @@ func TestLibsmbclientBindings(t *testing.T) {
 
 
 func getRandomFileName() string {
-	return fmt.Sprintf("%x", rand.Int())
+	return fmt.Sprintf("%d", rand.Int())
 }
 
 func openFile(client *Client, path string, c chan int) {
 	f, err := client.Open(path, 0, 0)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(fmt.Sprintf("%s: %s", path, err))
 	}
 	defer func() {
 		f.Close()
@@ -168,19 +168,50 @@ func openFile(client *Client, path string, c chan int) {
 	}
 }
 
+func readAllFilesInDir(client *Client, baseDir string, c chan int) {
+	d, err := client.Opendir(baseDir)
+	if err != nil {
+		log.Fatal(fmt.Sprintf("%s: %s", baseDir, err))
+	}
+	defer d.Closedir()
+	for {
+		dirent, err := d.Readdir()
+		if err != nil {
+			break
+		}
+		if dirent.Name == "." || dirent.Name == ".." {
+			continue
+		}
+		if dirent.Type == SMBC_DIR {
+			go readAllFilesInDir(client, baseDir+dirent.Name+"/", c)
+		}
+		if dirent.Type == SMBC_FILE {
+			go openFile(client, baseDir+dirent.Name, c)
+		}
+	}
+}
+
+
 func TestLibsmbclientThreaded(t *testing.T) {
 	fmt.Println("libsmbclient threaded test")
 
 	setUp()
 
-	THREADS := 25
+	DIRS := 5
+	THREADS := 12
 	FILE_SIZE := 4*1024
 
-	// create a bunch of test files
-	buf := make([]byte, FILE_SIZE)
-	for i := 0; i < THREADS; i++ {
-		tmpf := "./tmp/samba/public/" + getRandomFileName()
-		ioutil.WriteFile(tmpf, buf, 0644)
+	for i := 0; i < DIRS; i++ {
+		dirname := fmt.Sprintf("./tmp/samba/public/%d/", i)
+		os.MkdirAll(dirname, 0755)
+
+		// create a bunch of test files
+		buf := make([]byte, FILE_SIZE)
+		for j := 0; j < THREADS; j++ {
+			tmpf := dirname + getRandomFileName()
+			ioutil.WriteFile(tmpf, buf, 0644)
+		}
+
 	}
 
 	// open client
@@ -188,27 +219,15 @@ func TestLibsmbclientThreaded(t *testing.T) {
 	client := New()
 	defer client.Close()
 
-	d, err := client.Opendir(baseDir)
-	if err != nil {
-		t.Error("failed to open localhost ", err)
-	}
 	// read all files threaded
 	c := make(chan int)
-	for {
-		dirent, err := d.Readdir()
-		if err != nil {
-			break
-		}
-		if dirent.Type == SMBC_FILE {
-			go openFile(client, baseDir+dirent.Name, c)
-		}
-	}
+	go readAllFilesInDir(client, baseDir, c)
 
 	count := 0	
-	for count < THREADS {
+	for count < THREADS*DIRS {
 		count += <- c
 	}
 
-	fmt.Println("done")
+	fmt.Println(fmt.Sprintf("done: %d", count))
 	tearDown()
 }
