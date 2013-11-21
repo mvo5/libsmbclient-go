@@ -197,9 +197,9 @@ func TestLibsmbclientThreaded(t *testing.T) {
 
 	setUp()
 
-	CLIENTS := 2
-	DIRS := 2
-	THREADS := 2
+	CLIENTS := 4
+	DIRS := 4
+	THREADS := 8
 	FILE_SIZE := 4*1024
 
 	for i := 0; i < DIRS; i++ {

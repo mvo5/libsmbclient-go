@@ -56,7 +56,7 @@ type Client struct {
 	ctx *C.SMBCCTX
 	authCallback *func(string, string)(string, string, string)
 	// libsmbclient is not thread safe
-	lock sync.Mutex
+	lock *sync.Mutex
 }
 
 // File wrapper
@@ -65,8 +65,16 @@ type File struct {
 	smbcfile *C.SMBCFILE
 }
 
+// *sigh* even with libsmbclient-4.0 the library is not MT safe, 
+// e.g. smbc_init_context from multiple threads crashes
+var global_lock *sync.Mutex = &sync.Mutex{}
+
 func New() *Client {
-	c := &Client{ctx: C.smbc_new_context()}
+	global_lock.Lock()
+	defer global_lock.Unlock()
+
+	c := &Client{ctx: C.smbc_new_context(),
+		lock: global_lock}
 	C.smbc_init_context(c.ctx)
 	// this does not work reliable, see TestLibsmbclientThreaded test
 /*
