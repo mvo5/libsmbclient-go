@@ -197,8 +197,9 @@ func TestLibsmbclientThreaded(t *testing.T) {
 
 	setUp()
 
-	DIRS := 5
-	THREADS := 12
+	CLIENTS := 2
+	DIRS := 2
+	THREADS := 2
 	FILE_SIZE := 4*1024
 
 	for i := 0; i < DIRS; i++ {
@@ -214,17 +215,18 @@ func TestLibsmbclientThreaded(t *testing.T) {
 
 	}
 
-	// open client
-	baseDir := "smb://localhost/public/"
-	client := New()
-	defer client.Close()
-
-	// read all files threaded
+	// make N clients
 	c := make(chan int)
-	go readAllFilesInDir(client, baseDir, c)
+	for i := 0; i < CLIENTS; i++ {
+		baseDir := "smb://localhost/public/"
+		client := New()
+		// FIXME: close eventually
+		//defer client.Close()
+		go readAllFilesInDir(client, baseDir, c)
+	}
 
 	count := 0	
-	for count < THREADS*DIRS {
+	for count < THREADS*DIRS*CLIENTS {
 		count += <- c
 	}
 
