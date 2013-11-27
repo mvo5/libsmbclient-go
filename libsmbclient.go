@@ -51,6 +51,10 @@ type Dirent struct {
 	Name    string
 }
 
+// *sigh* even with libsmbclient-4.0 the library is not MT safe, 
+// e.g. smbc_init_context from multiple threads crashes
+var global_lock *sync.Mutex = &sync.Mutex{}
+
 // client interface
 type Client struct {
 	ctx *C.SMBCCTX
@@ -64,10 +68,6 @@ type File struct {
 	client *Client
 	smbcfile *C.SMBCFILE
 }
-
-// *sigh* even with libsmbclient-4.0 the library is not MT safe, 
-// e.g. smbc_init_context from multiple threads crashes
-var global_lock *sync.Mutex = &sync.Mutex{}
 
 func New() *Client {
 	global_lock.Lock()
