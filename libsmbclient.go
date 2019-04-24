@@ -13,7 +13,7 @@ import (
 #include <unistd.h>
 
 
-#include <libsmbclient.h>
+#include <samba-4.0/libsmbclient.h>
 
 SMBCFILE* my_smbc_opendir(SMBCCTX *c, const char *fname);
 int my_smbc_closedir(SMBCCTX *c, SMBCFILE *dir);
