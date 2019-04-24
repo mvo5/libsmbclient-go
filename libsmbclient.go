@@ -51,21 +51,21 @@ type Dirent struct {
 	Name    string
 }
 
-// *sigh* even with libsmbclient-4.0 the library is not MT safe, 
+// *sigh* even with libsmbclient-4.0 the library is not MT safe,
 // e.g. smbc_init_context from multiple threads crashes
 var global_lock *sync.Mutex = &sync.Mutex{}
 
 // client interface
 type Client struct {
-	ctx *C.SMBCCTX
-	authCallback *func(string, string)(string, string, string)
+	ctx          *C.SMBCCTX
+	authCallback *func(string, string) (string, string, string)
 	// libsmbclient is not thread safe
 	lock *sync.Mutex
 }
 
 // File wrapper
 type File struct {
-	client *Client
+	client   *Client
 	smbcfile *C.SMBCFILE
 }
 
@@ -77,12 +77,12 @@ func New() *Client {
 		lock: global_lock}
 	C.smbc_init_context(c.ctx)
 	// this does not work reliable, see TestLibsmbclientThreaded test
-/*
-	runtime.SetFinalizer(c, func(c2 *Client) {
-		fmt.Println(fmt.Sprintf("d: %v", c2))
-		c2.Close()
-	})
-*/
+	/*
+		runtime.SetFinalizer(c, func(c2 *Client) {
+			fmt.Println(fmt.Sprintf("d: %v", c2))
+			c2.Close()
+		})
+	*/
 
 	return c
 }
@@ -107,10 +107,10 @@ func (c *Client) Close() error {
 	return err
 }
 
-// authentication callback, this expects a go callback function 
+// authentication callback, this expects a go callback function
 // with the signature:
 //  func(server_name, share_name) (domain, username, password)
-func (c *Client) SetAuthCallback(fn func(string,string)(string,string,string)) {
+func (c *Client) SetAuthCallback(fn func(string, string) (string, string, string)) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
@@ -162,7 +162,6 @@ func (c *Client) SetWorkgroup(wg string) {
 
 	C.smbc_setWorkgroup(c.ctx, C.CString(wg))
 }
-
 
 // dir stuff
 
@@ -247,7 +246,7 @@ func (f *File) Close() {
 // INTERNAL use only
 //export GoAuthCallbackHelper
 func GoAuthCallbackHelper(fn unsafe.Pointer, server_name, share_name *C.char, domain_out *C.char, domain_len C.int, username_out *C.char, ulen C.int, password_out *C.char, pwlen C.int) {
-	go_fn := *(*func(server_name, share_name string)(string, string, string))(fn)
+	go_fn := *(*func(server_name, share_name string) (string, string, string))(fn)
 	domain, user, pw := go_fn(C.GoString(server_name), C.GoString(share_name))
 	C.strncpy(domain_out, C.CString(domain), C.size_t(domain_len))
 	C.strncpy(username_out, C.CString(user), C.size_t(ulen))

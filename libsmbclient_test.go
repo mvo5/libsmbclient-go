@@ -2,16 +2,16 @@ package libsmbclient
 
 import (
 	"fmt"
+	"io"
+	"io/ioutil"
 	"log"
-	"testing"
+	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"io"
-	"io/ioutil"
-	_ "time"
+	"testing"
 	"text/template"
-	"math/rand"
+	_ "time"
 )
 
 var SMB_CONF_TEMPLATE = `[global]
@@ -36,7 +36,7 @@ guest ok = yes
 [private]
 path = {{.Tempdir}}/private
 read only = no
-`	
+`
 
 // global teardown funcitons
 var teardown []func()
@@ -47,11 +47,11 @@ func generateSmbdConf() string {
 		os.RemoveAll(tempdir)
 	})
 	paths := [...]string{
-		tempdir, 
+		tempdir,
 		filepath.Join(tempdir, "samaba", "private"),
 		filepath.Join(tempdir, "samba", "public"),
 	}
-	for _, d := range(paths) {
+	for _, d := range paths {
 		err := os.MkdirAll(d, 0755)
 		if err != nil {
 			log.Fatal(err)
@@ -103,7 +103,7 @@ func setUp() {
 
 func tearDown() {
 	// cleanup
-	for _,f := range teardown {
+	for _, f := range teardown {
 		f()
 	}
 	// cleanup atexit
@@ -121,7 +121,7 @@ func TestLibsmbclientBindings(t *testing.T) {
 	if err != nil {
 		t.Error("failed to open localhost ", err)
 	}
-	
+
 	// collect dirs
 	foundSmbDirs := map[string]bool{}
 	for {
@@ -138,7 +138,6 @@ func TestLibsmbclientBindings(t *testing.T) {
 
 	tearDown()
 }
-
 
 func getRandomFileName() string {
 	return fmt.Sprintf("%d", rand.Int())
@@ -191,7 +190,6 @@ func readAllFilesInDir(client *Client, baseDir string, c chan int) {
 	}
 }
 
-
 func TestLibsmbclientThreaded(t *testing.T) {
 	fmt.Println("libsmbclient threaded test")
 
@@ -200,7 +198,7 @@ func TestLibsmbclientThreaded(t *testing.T) {
 	CLIENTS := 4
 	DIRS := 4
 	THREADS := 8
-	FILE_SIZE := 4*1024
+	FILE_SIZE := 4 * 1024
 
 	for i := 0; i < DIRS; i++ {
 		dirname := fmt.Sprintf("./tmp/samba/public/%d/", i)
@@ -225,9 +223,9 @@ func TestLibsmbclientThreaded(t *testing.T) {
 		go readAllFilesInDir(client, baseDir, c)
 	}
 
-	count := 0	
+	count := 0
 	for count < THREADS*DIRS*CLIENTS {
-		count += <- c
+		count += <-c
 	}
 
 	fmt.Println(fmt.Sprintf("done: %d", count))

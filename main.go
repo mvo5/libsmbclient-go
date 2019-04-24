@@ -4,14 +4,14 @@ package main
 
 import (
 	"."
-	"log"
-	"fmt"
+	"bufio"
 	"flag"
+	"fmt"
+	"io"
+	"log"
 	"os"
 	"os/exec"
-	"bufio"
 	"strings"
-	"io"
 	"time"
 )
 
@@ -52,7 +52,7 @@ func openSmbfile(client *libsmbclient.Client, furi string) {
 	f.Close()
 }
 
-func askAuth(server_name, share_name string)(out_domain, out_username, out_password string) { 
+func askAuth(server_name, share_name string) (out_domain, out_username, out_password string) {
 	bio := bufio.NewReader(os.Stdin)
 	fmt.Printf("auth for %s %s\n", server_name, share_name)
 	// domain
@@ -72,15 +72,15 @@ func askAuth(server_name, share_name string)(out_domain, out_username, out_passw
 func setEcho(terminal_echo_enabled bool) {
 	var cmd *exec.Cmd
 	if terminal_echo_enabled {
-		cmd = exec.Command("stty",  "-F", "/dev/tty", "echo")
-	} else  {
-		cmd = exec.Command("stty",  "-F", "/dev/tty", "-echo")
+		cmd = exec.Command("stty", "-F", "/dev/tty", "echo")
+	} else {
+		cmd = exec.Command("stty", "-F", "/dev/tty", "-echo")
 	}
 	cmd.Run()
 }
 
 func multiThreadStressTest(client *libsmbclient.Client, uri string) {
-	fmt.Println("m: "+uri)
+	fmt.Println("m: " + uri)
 	dh, err := client.Opendir(uri)
 	if err != nil {
 		log.Print(err)
@@ -92,19 +92,19 @@ func multiThreadStressTest(client *libsmbclient.Client, uri string) {
 			break
 		}
 		newUri := uri + "/" + dirent.Name
-		switch (dirent.Type) {
+		switch dirent.Type {
 		case libsmbclient.SMBC_DIR, libsmbclient.SMBC_FILE_SHARE:
-			fmt.Println("d: "+newUri)
+			fmt.Println("d: " + newUri)
 			go multiThreadStressTest(client, newUri)
 		case libsmbclient.SMBC_FILE:
-			fmt.Println("f: "+newUri)
+			fmt.Println("f: " + newUri)
 			go openSmbfile(client, newUri)
 		}
 	}
 	dh.Closedir()
 
 	// FIXME: instead of sleep, wait for all threads to exit
-	time.Sleep(10*time.Second)
+	time.Sleep(10 * time.Second)
 }
 
 func main() {
