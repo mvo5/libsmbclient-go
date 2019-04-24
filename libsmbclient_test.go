@@ -76,29 +76,24 @@ func generateSmbdConf() string {
 	return f.Name()
 }
 
-func startSmbd() io.Reader {
+func startSmbd() {
 	// thanks pitti :)
 	os.Setenv("LIBSMB_PROG", "nc localhost 1445")
 	smb_conf := generateSmbdConf()
 	cmd := exec.Command("smbd", "-FS", "-s", smb_conf)
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		log.Fatal(err)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Start(); err != nil {
+		panic(err)
 	}
-	cmd.Start()
 	teardown = append(teardown, func() {
 		cmd.Process.Kill()
 		cmd.Process.Wait()
 	})
-	return stdout
 }
 
 func setUp() {
-	stdout := startSmbd()
-	//time.Sleep(100 * time.Millisecond)
-	_ = stdout
-	//fmt.Println(stdout)
-	//go io.Copy(os.Stdout, stdout)
+	startSmbd()
 }
 
 func tearDown() {
@@ -107,7 +102,7 @@ func tearDown() {
 		f()
 	}
 	// cleanup atexit
-	teardown = []func(){}
+	teardown = nil
 }
 
 func TestLibsmbclientBindings(t *testing.T) {
