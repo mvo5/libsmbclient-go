@@ -1,9 +1,6 @@
-// +build ignore
-
 package main
 
 import (
-	"."
 	"bufio"
 	"flag"
 	"fmt"
@@ -13,6 +10,8 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/mvo5/libsmbclient-go"
 )
 
 func openSmbdir(client *libsmbclient.Client, duri string) {

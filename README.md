@@ -7,7 +7,7 @@ package.
 
 Build it with:
 ```
-$ go build main.go
+$ go build cmd/smb/main.go
 $ ./main -show-dir smb://localhost
 ```
 
