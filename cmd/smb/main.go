@@ -20,6 +20,7 @@ func openSmbdir(client *libsmbclient.Client, duri string) {
 		log.Print(err)
 		return
 	}
+	defer dh.Closedir()
 	for {
 		dirent, err := dh.Readdir()
 		if err != nil {
@@ -27,7 +28,6 @@ func openSmbdir(client *libsmbclient.Client, duri string) {
 		}
 		fmt.Println(dirent)
 	}
-	dh.Closedir()
 }
 
 func openSmbfile(client *libsmbclient.Client, furi string) {
@@ -85,6 +85,7 @@ func multiThreadStressTest(client *libsmbclient.Client, uri string) {
 		log.Print(err)
 		return
 	}
+	defer dh.Closedir()
 	for {
 		dirent, err := dh.Readdir()
 		if err != nil {
@@ -100,7 +101,6 @@ func multiThreadStressTest(client *libsmbclient.Client, uri string) {
 			go openSmbfile(client, newUri)
 		}
 	}
-	dh.Closedir()
 
 	// FIXME: instead of sleep, wait for all threads to exit
 	time.Sleep(10 * time.Second)

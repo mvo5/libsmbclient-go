@@ -32,7 +32,11 @@ import (
 )
 
 client := smbclient.New()
-dh := client.Opendir("smb://localhost")
+dh, err := client.Opendir("smb://localhost")
+if err != nil {
+    return err
+}
+defer dh.Closedir()
 for {
     dirent, err := dh.Readdir()
     if err != nil {
@@ -40,5 +44,4 @@ for {
     }
     fmt.Println(dirent)   
 }
-dh.Closedir()
 ```
