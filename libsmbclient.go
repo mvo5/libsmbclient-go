@@ -122,6 +122,15 @@ func (c *Client) SetAuthCallback(fn func(string, string) (string, string, string
 }
 
 // options
+
+// SetUseKerberos enable krb5 integration for authentication
+func (c *Client) SetUseKerberos() {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	C.smbc_setOptionUseKerberos(c.ctx, C.int(1))
+}
+
 func (c *Client) GetDebug() int {
 	c.lock.Lock()
 	defer c.lock.Unlock()

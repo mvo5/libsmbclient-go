@@ -1,9 +1,6 @@
-// +build ignore
-
 package main
 
 import (
-	"."
 	"bufio"
 	"flag"
 	"fmt"
@@ -13,6 +10,8 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/mvo5/libsmbclient-go"
 )
 
 func openSmbdir(client *libsmbclient.Client, duri string) {
@@ -21,6 +20,7 @@ func openSmbdir(client *libsmbclient.Client, duri string) {
 		log.Print(err)
 		return
 	}
+	defer dh.Closedir()
 	for {
 		dirent, err := dh.Readdir()
 		if err != nil {
@@ -28,7 +28,6 @@ func openSmbdir(client *libsmbclient.Client, duri string) {
 		}
 		fmt.Println(dirent)
 	}
-	dh.Closedir()
 }
 
 func openSmbfile(client *libsmbclient.Client, furi string) {
@@ -57,16 +56,16 @@ func askAuth(server_name, share_name string) (out_domain, out_username, out_pass
 	fmt.Printf("auth for %s %s\n", server_name, share_name)
 	// domain
 	fmt.Print("Domain: ")
-	domain, _, _ := bio.ReadLine()
+	domain, _ := bio.ReadString('\n')
 	// read username
 	fmt.Print("Username: ")
-	username, _, _ := bio.ReadLine()
+	username, _ := bio.ReadString('\n')
 	// read pw from stdin
 	fmt.Print("Password: ")
 	setEcho(false)
-	password, _, _ := bio.ReadLine()
+	password, _ := bio.ReadString('\n')
 	setEcho(true)
-	return strings.TrimSpace(string(domain)), strings.TrimSpace(string(username)), strings.TrimSpace(string(password))
+	return strings.TrimSpace(domain), strings.TrimSpace(username), strings.TrimSpace(password)
 }
 
 func setEcho(terminal_echo_enabled bool) {
@@ -86,6 +85,7 @@ func multiThreadStressTest(client *libsmbclient.Client, uri string) {
 		log.Print(err)
 		return
 	}
+	defer dh.Closedir()
 	for {
 		dirent, err := dh.Readdir()
 		if err != nil {
@@ -101,7 +101,6 @@ func multiThreadStressTest(client *libsmbclient.Client, uri string) {
 			go openSmbfile(client, newUri)
 		}
 	}
-	dh.Closedir()
 
 	// FIXME: instead of sleep, wait for all threads to exit
 	time.Sleep(10 * time.Second)
@@ -109,17 +108,20 @@ func multiThreadStressTest(client *libsmbclient.Client, uri string) {
 
 func main() {
 	var duri, furi, suri string
-	var withAuth bool
+	var withAuth, withKrb5 bool
 	flag.StringVar(&duri, "show-dir", "", "smb://path/to/dir style directory")
 	flag.StringVar(&furi, "show-file", "", "smb://path/to/file style file")
 	flag.BoolVar(&withAuth, "with-auth", false, "ask for auth")
+	flag.BoolVar(&withKrb5, "with-krb5", false, "use Kerberos for auth")
 	flag.StringVar(&suri, "stress-test", "", "run threaded stress test")
 	flag.Parse()
 
 	client := libsmbclient.New()
 	//client.SetDebug(99)
 
-	if withAuth {
+	if withKrb5 {
+		client.SetUseKerberos()
+	} else if withAuth {
 		client.SetAuthCallback(askAuth)
 	}
 
