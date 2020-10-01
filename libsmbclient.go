@@ -1,6 +1,7 @@
 package libsmbclient
 
 import (
+	"fmt"
 	"io"
 	"sync"
 	"unsafe"
@@ -170,7 +171,10 @@ func (c *Client) Opendir(durl string) (File, error) {
 	defer c.lock.Unlock()
 
 	d, err := C.my_smbc_opendir(c.ctx, C.CString(durl))
-	return File{client: c, smbcfile: d}, err
+	if d == nil {
+		return File{}, fmt.Errorf("cannot open %v: %v", durl, err)
+	}
+	return File{client: c, smbcfile: d}, nil
 }
 
 func (dir *File) Closedir() error {
@@ -190,8 +194,8 @@ func (dir *File) Readdir() (*Dirent, error) {
 	defer dir.client.lock.Unlock()
 
 	c_dirent, err := C.my_smbc_readdir(dir.client.ctx, dir.smbcfile)
-	if err != nil {
-		return nil, err
+	if c_dirent == nil && err != nil {
+		return nil, fmt.Errorf("cannot readdir: %v", err)
 	}
 	if c_dirent == nil {
 		return nil, io.EOF
@@ -199,7 +203,7 @@ func (dir *File) Readdir() (*Dirent, error) {
 	dirent := Dirent{Type: SmbcType(c_dirent.smbc_type),
 		Comment: C.GoStringN(c_dirent.comment, C.int(c_dirent.commentlen)),
 		Name:    C.GoStringN(&c_dirent.name[0], C.int(c_dirent.namelen))}
-	return &dirent, err
+	return &dirent, nil
 }
 
 // file stuff
@@ -211,7 +215,11 @@ func (c *Client) Open(furl string, flags int, mode int) (File, error) {
 
 	cs := C.CString(furl)
 	sf, err := C.my_smbc_open(c.ctx, cs, C.int(flags), C.mode_t(mode))
-	return File{client: c, smbcfile: sf}, err
+	if sf == nil && err != nil {
+		return File{}, fmt.Errorf("cannot open %v: %v", furl, err)
+	}
+
+	return File{client: c, smbcfile: sf}, nil
 }
 
 func (f *File) Read(buf []byte) (int, error) {
@@ -219,10 +227,13 @@ func (f *File) Read(buf []byte) (int, error) {
 	defer f.client.lock.Unlock()
 
 	c_count, err := C.my_smbc_read(f.client.ctx, f.smbcfile, unsafe.Pointer(&buf[0]), C.size_t(len(buf)))
-	if c_count == 0 && err == nil {
+	c := int(c_count)
+	if c == 0 {
 		return 0, io.EOF
+	} else if c < 0 && err != nil {
+		return c, fmt.Errorf("cannot read: %v", err)
 	}
-	return int(c_count), err
+	return c, nil
 }
 
 func (f *File) Lseek(offset, whence int) (int, error) {
@@ -230,7 +241,10 @@ func (f *File) Lseek(offset, whence int) (int, error) {
 	defer f.client.lock.Unlock()
 
 	new_offset, err := C.my_smbc_lseek(f.client.ctx, f.smbcfile, C.off_t(offset), C.int(whence))
-	return int(new_offset), err
+	if int(new_offset) < 0 && err != nil {
+		return int(new_offset), fmt.Errorf("cannot seek: %v", err)
+	}
+	return int(new_offset), nil
 }
 
 func (f *File) Close() {
