@@ -56,16 +56,16 @@ func askAuth(server_name, share_name string) (out_domain, out_username, out_pass
 	fmt.Printf("auth for %s %s\n", server_name, share_name)
 	// domain
 	fmt.Print("Domain: ")
-	domain, _, _ := bio.ReadLine()
+	domain, _ := bio.ReadString('\n')
 	// read username
 	fmt.Print("Username: ")
-	username, _, _ := bio.ReadLine()
+	username, _ := bio.ReadString('\n')
 	// read pw from stdin
 	fmt.Print("Password: ")
 	setEcho(false)
-	password, _, _ := bio.ReadLine()
+	password, _ := bio.ReadString('\n')
 	setEcho(true)
-	return strings.TrimSpace(string(domain)), strings.TrimSpace(string(username)), strings.TrimSpace(string(password))
+	return strings.TrimSpace(domain), strings.TrimSpace(username), strings.TrimSpace(password)
 }
 
 func setEcho(terminal_echo_enabled bool) {
