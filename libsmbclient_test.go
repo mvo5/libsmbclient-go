@@ -1,4 +1,4 @@
-package libsmbclient
+package libsmbclient_test
 
 import (
 	"fmt"
@@ -12,7 +12,13 @@ import (
 	"testing"
 	"text/template"
 	_ "time"
+
+	. "gopkg.in/check.v1"
+
+	"github.com/mvo5/libsmbclient-go"
 )
+
+func Test(t *testing.T) { TestingT(t) }
 
 var SMB_CONF_TEMPLATE = `[global]
 workgroup = TESTGROUP
@@ -38,14 +44,24 @@ path = {{.Tempdir}}/private
 read only = no
 `
 
-// global teardown funcitons
-var teardown []func()
+type smbclientSuite struct {
+	smbdCmd *exec.Cmd
+}
 
-func generateSmbdConf() string {
-	tempdir, _ := filepath.Abs("./tmp/samba")
-	teardown = append(teardown, func() {
-		os.RemoveAll(tempdir)
-	})
+var _ = Suite(&smbclientSuite{})
+
+func (s *smbclientSuite) SetUpSuite(c *C) {
+	s.startSmbd(c)
+}
+
+func (s *smbclientSuite) TearDownSuite(c *C) {
+	s.smbdCmd.Process.Kill()
+	s.smbdCmd.Wait()
+	s.smbdCmd = nil
+}
+
+func (s *smbclientSuite) generateSmbdConf(c *C) string {
+	tempdir := c.MkDir()
 	paths := [...]string{
 		tempdir,
 		filepath.Join(tempdir, "samaba", "private"),
@@ -76,46 +92,23 @@ func generateSmbdConf() string {
 	return f.Name()
 }
 
-func startSmbd() {
-	// thanks pitti :)
+func (s *smbclientSuite) startSmbd(c *C) {
+	// tells smbd to use a port different from "445"
 	os.Setenv("LIBSMB_PROG", "nc localhost 1445")
-	smb_conf := generateSmbdConf()
+	smb_conf := s.generateSmbdConf(c)
 	cmd := exec.Command("smbd", "-FS", "-s", smb_conf)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	if err := cmd.Start(); err != nil {
-		panic(err)
-	}
-	teardown = append(teardown, func() {
-		cmd.Process.Kill()
-		cmd.Process.Wait()
-	})
+	err := cmd.Start()
+	c.Assert(err, IsNil)
+	s.smbdCmd = cmd
 }
 
-func setUp() {
-	startSmbd()
-}
-
-func tearDown() {
-	// cleanup
-	for _, f := range teardown {
-		f()
-	}
-	// cleanup atexit
-	teardown = nil
-}
-
-func TestLibsmbclientBindings(t *testing.T) {
-	fmt.Println("libsmbclient opendir test")
-
-	setUp()
-
+func (s *smbclientSuite) TestLibsmbclientBindings(c *C) {
 	// open client
-	client := New()
+	client := libsmbclient.New()
 	d, err := client.Opendir("smb://localhost")
-	if err != nil {
-		t.Error("failed to open localhost ", err)
-	}
+	c.Assert(err, IsNil)
 
 	// collect dirs
 	foundSmbDirs := map[string]bool{}
@@ -128,17 +121,15 @@ func TestLibsmbclientBindings(t *testing.T) {
 	}
 	// check for expected data
 	if !foundSmbDirs["private"] || !foundSmbDirs["public"] {
-		t.Error(fmt.Sprintf("missing excpected folder in (%v)", foundSmbDirs))
+		c.Errorf("missing excpected folder in (%v)", foundSmbDirs)
 	}
-
-	tearDown()
 }
 
 func getRandomFileName() string {
 	return fmt.Sprintf("%d", rand.Int())
 }
 
-func openFile(client *Client, path string, c chan int) {
+func openFile(client *libsmbclient.Client, path string, c chan int) {
 	f, err := client.Open(path, 0, 0)
 	if err != nil {
 		log.Fatal(fmt.Sprintf("%s: %s", path, err))
@@ -162,7 +153,7 @@ func openFile(client *Client, path string, c chan int) {
 	}
 }
 
-func readAllFilesInDir(client *Client, baseDir string, c chan int) {
+func readAllFilesInDir(client *libsmbclient.Client, baseDir string, c chan int) {
 	d, err := client.Opendir(baseDir)
 	if err != nil {
 		log.Fatal(fmt.Sprintf("%s: %s", baseDir, err))
@@ -176,20 +167,16 @@ func readAllFilesInDir(client *Client, baseDir string, c chan int) {
 		if dirent.Name == "." || dirent.Name == ".." {
 			continue
 		}
-		if dirent.Type == SMBC_DIR {
+		if dirent.Type == libsmbclient.SMBC_DIR {
 			go readAllFilesInDir(client, baseDir+dirent.Name+"/", c)
 		}
-		if dirent.Type == SMBC_FILE {
+		if dirent.Type == libsmbclient.SMBC_FILE {
 			go openFile(client, baseDir+dirent.Name, c)
 		}
 	}
 }
 
-func TestLibsmbclientThreaded(t *testing.T) {
-	fmt.Println("libsmbclient threaded test")
-
-	setUp()
-
+func (s *smbclientSuite) TestLibsmbclientThreaded(c *C) {
 	CLIENTS := 4
 	DIRS := 4
 	THREADS := 8
@@ -209,20 +196,19 @@ func TestLibsmbclientThreaded(t *testing.T) {
 	}
 
 	// make N clients
-	c := make(chan int)
+	ch := make(chan int)
 	for i := 0; i < CLIENTS; i++ {
 		baseDir := "smb://localhost/public/"
-		client := New()
+		client := libsmbclient.New()
 		// FIXME: close eventually
 		//defer client.Close()
-		go readAllFilesInDir(client, baseDir, c)
+		go readAllFilesInDir(client, baseDir, ch)
 	}
 
 	count := 0
 	for count < THREADS*DIRS*CLIENTS {
-		count += <-c
+		count += <-ch
 	}
 
 	fmt.Println(fmt.Sprintf("done: %d", count))
-	tearDown()
 }
