@@ -108,17 +108,20 @@ func multiThreadStressTest(client *libsmbclient.Client, uri string) {
 
 func main() {
 	var duri, furi, suri string
-	var withAuth bool
+	var withAuth, withKrb5 bool
 	flag.StringVar(&duri, "show-dir", "", "smb://path/to/dir style directory")
 	flag.StringVar(&furi, "show-file", "", "smb://path/to/file style file")
 	flag.BoolVar(&withAuth, "with-auth", false, "ask for auth")
+	flag.BoolVar(&withKrb5, "with-krb5", false, "use Kerberos for auth")
 	flag.StringVar(&suri, "stress-test", "", "run threaded stress test")
 	flag.Parse()
 
 	client := libsmbclient.New()
 	//client.SetDebug(99)
 
-	if withAuth {
+	if withKrb5 {
+		client.SetUseKerberos()
+	} else if withAuth {
 		client.SetAuthCallback(askAuth)
 	}
 
