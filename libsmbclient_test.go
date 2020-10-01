@@ -46,26 +46,29 @@ read only = no
 
 type smbclientSuite struct {
 	smbdCmd *exec.Cmd
+
+	tempdir string
 }
 
 var _ = Suite(&smbclientSuite{})
 
 func (s *smbclientSuite) SetUpSuite(c *C) {
+	s.tempdir = c.MkDir()
 	s.startSmbd(c)
 }
 
 func (s *smbclientSuite) TearDownSuite(c *C) {
 	s.smbdCmd.Process.Kill()
-	s.smbdCmd.Wait()
+	// XXX: wait will segfault because libsmbclient overrides sigchld
+	//s.smbdCmd.Wait()
 	s.smbdCmd = nil
 }
 
 func (s *smbclientSuite) generateSmbdConf(c *C) string {
-	tempdir := c.MkDir()
 	paths := [...]string{
-		tempdir,
-		filepath.Join(tempdir, "samaba", "private"),
-		filepath.Join(tempdir, "samba", "public"),
+		s.tempdir,
+		filepath.Join(s.tempdir, "samaba", "private"),
+		filepath.Join(s.tempdir, "samba", "public"),
 	}
 	for _, d := range paths {
 		err := os.MkdirAll(d, 0755)
@@ -73,9 +76,11 @@ func (s *smbclientSuite) generateSmbdConf(c *C) string {
 			log.Fatal(err)
 		}
 	}
-	os.Mkdir(filepath.Join(tempdir, "private"), 0755)
-	os.Mkdir(filepath.Join(tempdir, "public"), 0755)
-	f, err := os.Create(filepath.Join(tempdir, "smbd.conf"))
+	err := os.Mkdir(filepath.Join(s.tempdir, "private"), 0755)
+	c.Assert(err, IsNil)
+	err = os.Mkdir(filepath.Join(s.tempdir, "public"), 0755)
+	c.Assert(err, IsNil)
+	f, err := os.Create(filepath.Join(s.tempdir, "smbd.conf"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -88,7 +93,7 @@ func (s *smbclientSuite) generateSmbdConf(c *C) string {
 	if err != nil {
 		log.Fatal(err)
 	}
-	t.Execute(f, Dir{tempdir})
+	t.Execute(f, Dir{s.tempdir})
 	return f.Name()
 }
 
@@ -97,7 +102,7 @@ func (s *smbclientSuite) startSmbd(c *C) {
 	os.Setenv("LIBSMB_PROG", "nc localhost 1445")
 	smb_conf := s.generateSmbdConf(c)
 	cmd := exec.Command("smbd", "-FS", "-s", smb_conf)
-	cmd.Stdout = os.Stdout
+	//cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err := cmd.Start()
 	c.Assert(err, IsNil)
@@ -107,7 +112,7 @@ func (s *smbclientSuite) startSmbd(c *C) {
 func (s *smbclientSuite) TestLibsmbclientBindings(c *C) {
 	// open client
 	client := libsmbclient.New()
-	d, err := client.Opendir("smb://localhost")
+	d, err := client.Opendir("smb://localhost:1445")
 	c.Assert(err, IsNil)
 
 	// collect dirs
@@ -183,7 +188,7 @@ func (s *smbclientSuite) TestLibsmbclientThreaded(c *C) {
 	FILE_SIZE := 4 * 1024
 
 	for i := 0; i < DIRS; i++ {
-		dirname := fmt.Sprintf("./tmp/samba/public/%d/", i)
+		dirname := fmt.Sprintf("%s/samba/public/%d/", s.tempdir, i)
 		os.MkdirAll(dirname, 0755)
 
 		// create a bunch of test files
@@ -192,13 +197,12 @@ func (s *smbclientSuite) TestLibsmbclientThreaded(c *C) {
 			tmpf := dirname + getRandomFileName()
 			ioutil.WriteFile(tmpf, buf, 0644)
 		}
-
 	}
 
 	// make N clients
 	ch := make(chan int)
 	for i := 0; i < CLIENTS; i++ {
-		baseDir := "smb://localhost/public/"
+		baseDir := "smb://localhost:1445/public/"
 		client := libsmbclient.New()
 		// FIXME: close eventually
 		//defer client.Close()
