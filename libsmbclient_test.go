@@ -134,14 +134,14 @@ func getRandomFileName() string {
 	return fmt.Sprintf("%d", rand.Int())
 }
 
-func openFile(client *libsmbclient.Client, path string, c chan int) {
+func openFile(client *libsmbclient.Client, path string, ch chan int) {
 	f, err := client.Open(path, 0, 0)
 	if err != nil {
 		log.Fatal(fmt.Sprintf("%s: %s", path, err))
 	}
 	defer func() {
 		f.Close()
-		c <- 1
+		ch <- 1
 	}()
 
 	// FIXME: move this into the lib as ioutil.ReadFile()
@@ -158,7 +158,7 @@ func openFile(client *libsmbclient.Client, path string, c chan int) {
 	}
 }
 
-func readAllFilesInDir(client *libsmbclient.Client, baseDir string, c chan int) {
+func readAllFilesInDir(client *libsmbclient.Client, baseDir string, ch chan int) {
 	d, err := client.Opendir(baseDir)
 	if err != nil {
 		log.Fatal(fmt.Sprintf("%s: %s", baseDir, err))
@@ -166,17 +166,20 @@ func readAllFilesInDir(client *libsmbclient.Client, baseDir string, c chan int) 
 	defer d.Closedir()
 	for {
 		dirent, err := d.Readdir()
-		if err != nil {
+		if err == io.EOF {
 			break
+		}
+		if err != nil {
+			log.Fatalf("readdir failed %s", err)
 		}
 		if dirent.Name == "." || dirent.Name == ".." {
 			continue
 		}
 		if dirent.Type == libsmbclient.SMBC_DIR {
-			go readAllFilesInDir(client, baseDir+dirent.Name+"/", c)
+			go readAllFilesInDir(client, baseDir+dirent.Name+"/", ch)
 		}
 		if dirent.Type == libsmbclient.SMBC_FILE {
-			go openFile(client, baseDir+dirent.Name, c)
+			go openFile(client, baseDir+dirent.Name, ch)
 		}
 	}
 }
@@ -188,14 +191,16 @@ func (s *smbclientSuite) TestLibsmbclientThreaded(c *C) {
 	FILE_SIZE := 4 * 1024
 
 	for i := 0; i < DIRS; i++ {
-		dirname := fmt.Sprintf("%s/samba/public/%d/", s.tempdir, i)
-		os.MkdirAll(dirname, 0755)
+		dirname := fmt.Sprintf("%s/public/%d/", s.tempdir, i)
+		err := os.MkdirAll(dirname, 0755)
+		c.Assert(err, IsNil)
 
 		// create a bunch of test files
 		buf := make([]byte, FILE_SIZE)
 		for j := 0; j < THREADS; j++ {
 			tmpf := dirname + getRandomFileName()
-			ioutil.WriteFile(tmpf, buf, 0644)
+			err = ioutil.WriteFile(tmpf, buf, 0644)
+			c.Assert(err, IsNil)
 		}
 	}
 
@@ -204,8 +209,7 @@ func (s *smbclientSuite) TestLibsmbclientThreaded(c *C) {
 	for i := 0; i < CLIENTS; i++ {
 		baseDir := "smb://localhost:1445/public/"
 		client := libsmbclient.New()
-		// FIXME: close eventually
-		//defer client.Close()
+		defer client.Close()
 		go readAllFilesInDir(client, baseDir, ch)
 	}
 
