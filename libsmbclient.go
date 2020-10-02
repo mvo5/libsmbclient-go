@@ -30,33 +30,35 @@ void my_smbc_auth_callback(SMBCCTX *context,
 void my_smbc_init_auth_callback(SMBCCTX *context, void *go_fn);
 off_t my_smbc_lseek(SMBCCTX *c, SMBCFILE * file, off_t offset, int whence);
 */
-import "C" // DO NOT CHANGE THE POSITION OF THIS IMPORT
+import "C"
 
-// SmbType
+// SmbcType is the different type of entity returned by samba.
 type SmbcType int
 
 const (
-	SMBC_WORKGROUP     SmbcType = C.SMBC_WORKGROUP
-	SMBC_FILE_SHARE             = C.SMBC_FILE_SHARE
-	SMBC_PRINTER_SHARE          = C.SMBC_PRINTER_SHARE
-	SMBC_COMMS_SHARE            = C.SMBC_COMMS_SHARE
-	SMBC_IPC_SHARE              = C.SMBC_IPC_SHARE
-	SMBC_DIR                    = C.SMBC_DIR
-	SMBC_FILE                   = C.SMBC_FILE
-	SMBC_LINK                   = C.SMBC_LINK
+	// SMBC_WORKGROUP is a workgroup entity.
+	SMBC_WORKGROUP SmbcType = C.SMBC_WORKGROUP
+	// SMBC_FILE_SHARE is a file share.
+	SMBC_FILE_SHARE = C.SMBC_FILE_SHARE
+	// SMBC_PRINTER_SHARE is a printer share.
+	SMBC_PRINTER_SHARE = C.SMBC_PRINTER_SHARE
+	// SMBC_COMMS_SHARE is a communication share.
+	SMBC_COMMS_SHARE = C.SMBC_COMMS_SHARE
+	// SMBC_IPC_SHARE is an ipc share entity.
+	SMBC_IPC_SHARE = C.SMBC_IPC_SHARE
+	// SMBC_DIR is a directory.
+	SMBC_DIR = C.SMBC_DIR
+	// SMBC_FILE is a file.
+	SMBC_FILE = C.SMBC_FILE
+	// SMBC_LINK is a symlink.
+	SMBC_LINK = C.SMBC_LINK
 )
-
-type Dirent struct {
-	Type    SmbcType
-	Comment string
-	Name    string
-}
 
 // *sigh* even with libsmbclient-4.0 the library is not MT safe,
 // e.g. smbc_init_context from multiple threads crashes
 var smbMu = sync.Mutex{}
 
-// client interface
+// Client is a samba client instance, handling its own context and lock.
 type Client struct {
 	ctx          *C.SMBCCTX
 	authCallback *AuthCallback
@@ -64,12 +66,20 @@ type Client struct {
 	smbMu *sync.Mutex
 }
 
-// File wrapper
+// Dirent represents a samba directory entry.
+type Dirent struct {
+	Type    SmbcType
+	Comment string
+	Name    string
+}
+
+// File reprends a samba file.
 type File struct {
 	client   *Client
 	smbcfile *C.SMBCFILE
 }
 
+// New creates a new samba client.
 func New() *Client {
 	smbMu.Lock()
 	defer smbMu.Unlock()
@@ -88,10 +98,12 @@ func New() *Client {
 	return c
 }
 
+// Destroy closes the current samba client.
 func (c *Client) Destroy() error {
 	return c.Close()
 }
 
+// Close closes the current samba client and release context.
 func (c *Client) Close() error {
 	// FIXME: is there a more elegant way for this c.lock.Lock() that
 	//        needs to be part of every function? python decorator to
@@ -123,9 +135,7 @@ func (c *Client) SetAuthCallback(f AuthCallback) {
 	c.authCallback = &f
 }
 
-// options
-
-// SetUseKerberos enable krb5 integration for authentication
+// SetUseKerberos enable krb5 integration for authentication.
 func (c *Client) SetUseKerberos() {
 	c.smbMu.Lock()
 	defer c.smbMu.Unlock()
@@ -133,6 +143,7 @@ func (c *Client) SetUseKerberos() {
 	C.smbc_setOptionUseKerberos(c.ctx, C.int(1))
 }
 
+// GetDebug returns the debug level.
 func (c *Client) GetDebug() int {
 	c.smbMu.Lock()
 	defer c.smbMu.Unlock()
@@ -140,6 +151,7 @@ func (c *Client) GetDebug() int {
 	return int(C.smbc_getDebug(c.ctx))
 }
 
+// SetDebug sets the degug level.
 func (c *Client) SetDebug(level int) {
 	c.smbMu.Lock()
 	defer c.smbMu.Unlock()
@@ -147,6 +159,7 @@ func (c *Client) SetDebug(level int) {
 	C.smbc_setDebug(c.ctx, C.int(level))
 }
 
+// GetUser returns the authenticated user.
 func (c *Client) GetUser() string {
 	c.smbMu.Lock()
 	defer c.smbMu.Unlock()
@@ -154,6 +167,7 @@ func (c *Client) GetUser() string {
 	return C.GoString(C.smbc_getUser(c.ctx))
 }
 
+// SetUser sets the user to use for the session.
 func (c *Client) SetUser(user string) {
 	c.smbMu.Lock()
 	defer c.smbMu.Unlock()
@@ -161,6 +175,7 @@ func (c *Client) SetUser(user string) {
 	C.smbc_setUser(c.ctx, C.CString(user))
 }
 
+// GetWorkgroup returns the name of the current workgroup.
 func (c *Client) GetWorkgroup() string {
 	c.smbMu.Lock()
 	defer c.smbMu.Unlock()
@@ -168,6 +183,7 @@ func (c *Client) GetWorkgroup() string {
 	return C.GoString(C.smbc_getWorkgroup(c.ctx))
 }
 
+// SetWorkgroup sets the work group to use for the session.
 func (c *Client) SetWorkgroup(wg string) {
 	c.smbMu.Lock()
 	defer c.smbMu.Unlock()
@@ -175,8 +191,7 @@ func (c *Client) SetWorkgroup(wg string) {
 	C.smbc_setWorkgroup(c.ctx, C.CString(wg))
 }
 
-// dir stuff
-
+// Opendir opens a directory and returns a handle on success.
 func (c *Client) Opendir(durl string) (File, error) {
 	c.smbMu.Lock()
 	defer c.smbMu.Unlock()
@@ -188,6 +203,7 @@ func (c *Client) Opendir(durl string) (File, error) {
 	return File{client: c, smbcfile: d}, nil
 }
 
+// Closedir closes current directory.
 func (dir *File) Closedir() error {
 	dir.client.smbMu.Lock()
 	defer dir.client.smbMu.Unlock()
@@ -200,6 +216,7 @@ func (dir *File) Closedir() error {
 	return nil
 }
 
+// Readdir reads the directory named pointed by File and returned its Dirent.
 func (dir *File) Readdir() (*Dirent, error) {
 	dir.client.smbMu.Lock()
 	defer dir.client.smbMu.Unlock()
@@ -217,8 +234,7 @@ func (dir *File) Readdir() (*Dirent, error) {
 	return &dirent, nil
 }
 
-// file stuff
-
+// Open opens a file and returns a handle on success.
 // FIXME: mode is actually "mode_t mode"
 func (c *Client) Open(furl string, flags int, mode int) (File, error) {
 	c.smbMu.Lock()
@@ -233,6 +249,8 @@ func (c *Client) Open(furl string, flags int, mode int) (File, error) {
 	return File{client: c, smbcfile: sf}, nil
 }
 
+// Read reads up to len(b) bytes from the File. It returns the number of bytes read and any error encountered.
+// At end of file, Read returns 0, io.EOF.
 func (f *File) Read(buf []byte) (int, error) {
 	f.client.smbMu.Lock()
 	defer f.client.smbMu.Unlock()
@@ -247,6 +265,7 @@ func (f *File) Read(buf []byte) (int, error) {
 	return c, nil
 }
 
+// Lseek repositions the file offset of the open file to the argument offset according to the directive whence.
 func (f *File) Lseek(offset, whence int) (int, error) {
 	f.client.smbMu.Lock()
 	defer f.client.smbMu.Unlock()
@@ -258,6 +277,7 @@ func (f *File) Lseek(offset, whence int) (int, error) {
 	return int(newOffset), nil
 }
 
+// Close closes current file and and releases its ressources.
 func (f *File) Close() {
 	f.client.smbMu.Lock()
 	defer f.client.smbMu.Unlock()
