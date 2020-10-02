@@ -105,9 +105,6 @@ func (c *Client) Destroy() error {
 
 // Close closes the current samba client and release context.
 func (c *Client) Close() error {
-	// FIXME: is there a more elegant way for this c.lock.Lock() that
-	//        needs to be part of every function? python decorator to
-	//        the rescue :)
 	c.smbMu.Lock()
 	defer c.smbMu.Unlock()
 
