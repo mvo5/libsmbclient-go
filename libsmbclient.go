@@ -59,7 +59,7 @@ var smbMu = sync.Mutex{}
 // client interface
 type Client struct {
 	ctx          *C.SMBCCTX
-	authCallback *func(string, string) (string, string, string)
+	authCallback *AuthCallback
 	// libsmbclient is not thread safe
 	smbMu *sync.Mutex
 }
@@ -108,17 +108,19 @@ func (c *Client) Close() error {
 	return err
 }
 
-// authentication callback, this expects a go callback function
-// with the signature:
-//  func(serverName, shareName) (domain, username, password)
-func (c *Client) SetAuthCallback(fn func(string, string) (string, string, string)) {
+// AuthCallback is the authentication function that will be called during connection with samba.
+type AuthCallback = func(serverName string, shareName string) (domain string, username string, password string)
+
+// SetAuthCallback assigns the authentication function that will be called during connection
+// with samba.
+func (c *Client) SetAuthCallback(f AuthCallback) {
 	c.smbMu.Lock()
 	defer c.smbMu.Unlock()
 
-	C.my_smbc_init_auth_callback(c.ctx, unsafe.Pointer(&fn))
+	C.my_smbc_init_auth_callback(c.ctx, unsafe.Pointer(&f))
 	// we need to store it in the Client struct to ensure its not garbage
 	// collected later (I think)
-	c.authCallback = &fn
+	c.authCallback = &f
 }
 
 // options
@@ -269,7 +271,7 @@ func (f *File) Close() {
 // INTERNAL use only
 //export GoAuthCallbackHelper
 func GoAuthCallbackHelper(fn unsafe.Pointer, serverName, shareName *C.char, domainOut *C.char, domainLen C.int, usernameOut *C.char, ulen C.int, passwordOut *C.char, pwlen C.int) {
-	callback := *(*func(serverName, shareName string) (string, string, string))(fn)
+	callback := *(*AuthCallback)(fn)
 	domain, user, pw := callback(C.GoString(serverName), C.GoString(shareName))
 	C.strncpy(domainOut, C.CString(domain), C.size_t(domainLen))
 	C.strncpy(usernameOut, C.CString(user), C.size_t(ulen))
