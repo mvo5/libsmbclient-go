@@ -2,26 +2,19 @@ name: Test
 on: [push, pull_request]
 jobs:
   test:
-    env:
-      GOPATH: ${{ github.workspace }}
-      GO111MODULE: off
     runs-on: ubuntu-latest
     steps:
     - name: Install Go
       uses: actions/setup-go@v2
     - name: Checkout code
       uses: actions/checkout@v2
-      with:
-        path: ./src/github.com/${{ github.repository }}
     - name: Install apt test dependencies
       run: |
         sudo apt update
         sudo apt install -y libsmbclient-dev samba
     - name: Install go dependencies
       run: |
-        cd ./src/github.com/${{ github.repository }}
         go get -t -v ./...
     - name: Test
       run: |
-        cd ./src/github.com/${{ github.repository }}        
         go test ./...

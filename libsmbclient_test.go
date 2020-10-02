@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"testing"
 	"text/template"
-	_ "time"
 
 	. "gopkg.in/check.v1"
 
@@ -20,7 +19,7 @@ import (
 
 func Test(t *testing.T) { TestingT(t) }
 
-var SMB_CONF_TEMPLATE = `[global]
+var SmbConfTemplate = `[global]
 workgroup = TESTGROUP
 interfaces = lo 127.0.0.0/8
 smb ports = 1445
@@ -85,7 +84,7 @@ func (s *smbclientSuite) generateSmbdConf(c *C) string {
 		log.Fatal(err)
 	}
 	defer f.Close()
-	templateText := SMB_CONF_TEMPLATE
+	templateText := SmbConfTemplate
 	type Dir struct {
 		Tempdir string
 	}
@@ -100,8 +99,8 @@ func (s *smbclientSuite) generateSmbdConf(c *C) string {
 func (s *smbclientSuite) startSmbd(c *C) {
 	// tells smbd to use a port different from "445"
 	os.Setenv("LIBSMB_PROG", "nc localhost 1445")
-	smb_conf := s.generateSmbdConf(c)
-	cmd := exec.Command("smbd", "-FS", "-s", smb_conf)
+	smbConf := s.generateSmbdConf(c)
+	cmd := exec.Command("smbd", "-FS", "-s", smbConf)
 	//cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err := cmd.Start()
@@ -175,10 +174,10 @@ func readAllFilesInDir(client *libsmbclient.Client, baseDir string, ch chan int)
 		if dirent.Name == "." || dirent.Name == ".." {
 			continue
 		}
-		if dirent.Type == libsmbclient.SMBC_DIR {
+		if dirent.Type == libsmbclient.SmbcDir {
 			go readAllFilesInDir(client, baseDir+dirent.Name+"/", ch)
 		}
-		if dirent.Type == libsmbclient.SMBC_FILE {
+		if dirent.Type == libsmbclient.SmbcFile {
 			go openFile(client, baseDir+dirent.Name, ch)
 		}
 	}

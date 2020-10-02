@@ -51,9 +51,9 @@ func openSmbfile(client *libsmbclient.Client, furi string) {
 	f.Close()
 }
 
-func askAuth(server_name, share_name string) (out_domain, out_username, out_password string) {
+func askAuth(serverName, shareName string) (outDomain, outUsername, outPassword string) {
 	bio := bufio.NewReader(os.Stdin)
-	fmt.Printf("auth for %s %s\n", server_name, share_name)
+	fmt.Printf("auth for %s %s\n", serverName, shareName)
 	// domain
 	fmt.Print("Domain: ")
 	domain, _ := bio.ReadString('\n')
@@ -68,9 +68,9 @@ func askAuth(server_name, share_name string) (out_domain, out_username, out_pass
 	return strings.TrimSpace(domain), strings.TrimSpace(username), strings.TrimSpace(password)
 }
 
-func setEcho(terminal_echo_enabled bool) {
+func setEcho(terminalEchoEnabled bool) {
 	var cmd *exec.Cmd
-	if terminal_echo_enabled {
+	if terminalEchoEnabled {
 		cmd = exec.Command("stty", "-F", "/dev/tty", "echo")
 	} else {
 		cmd = exec.Command("stty", "-F", "/dev/tty", "-echo")
@@ -93,10 +93,10 @@ func multiThreadStressTest(client *libsmbclient.Client, uri string) {
 		}
 		newUri := uri + "/" + dirent.Name
 		switch dirent.Type {
-		case libsmbclient.SMBC_DIR, libsmbclient.SMBC_FILE_SHARE:
+		case libsmbclient.SmbcDir, libsmbclient.SmbcFileShare:
 			fmt.Println("d: " + newUri)
 			go multiThreadStressTest(client, newUri)
-		case libsmbclient.SMBC_FILE:
+		case libsmbclient.SmbcFile:
 			fmt.Println("f: " + newUri)
 			go openSmbfile(client, newUri)
 		}
