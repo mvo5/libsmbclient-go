@@ -201,24 +201,24 @@ func (c *Client) Opendir(durl string) (File, error) {
 }
 
 // Closedir closes current directory.
-func (dir *File) Closedir() error {
-	dir.client.smbMu.Lock()
-	defer dir.client.smbMu.Unlock()
+func (e *File) Closedir() error {
+	e.client.smbMu.Lock()
+	defer e.client.smbMu.Unlock()
 
-	if dir.smbcfile != nil {
-		_, err := C.my_smbc_closedir(dir.client.ctx, dir.smbcfile)
-		dir.smbcfile = nil
+	if e.smbcfile != nil {
+		_, err := C.my_smbc_closedir(e.client.ctx, e.smbcfile)
+		e.smbcfile = nil
 		return err
 	}
 	return nil
 }
 
 // Readdir reads the directory named pointed by File and returned its Dirent.
-func (dir *File) Readdir() (*Dirent, error) {
-	dir.client.smbMu.Lock()
-	defer dir.client.smbMu.Unlock()
+func (e *File) Readdir() (*Dirent, error) {
+	e.client.smbMu.Lock()
+	defer e.client.smbMu.Unlock()
 
-	cDirent, err := C.my_smbc_readdir(dir.client.ctx, dir.smbcfile)
+	cDirent, err := C.my_smbc_readdir(e.client.ctx, e.smbcfile)
 	if cDirent == nil && err != nil {
 		return nil, fmt.Errorf("cannot readdir: %v", err)
 	}
@@ -248,11 +248,11 @@ func (c *Client) Open(furl string, flags int, mode int) (File, error) {
 
 // Read reads up to len(b) bytes from the File. It returns the number of bytes read and any error encountered.
 // At end of file, Read returns 0, io.EOF.
-func (f *File) Read(buf []byte) (int, error) {
-	f.client.smbMu.Lock()
-	defer f.client.smbMu.Unlock()
+func (e *File) Read(buf []byte) (int, error) {
+	e.client.smbMu.Lock()
+	defer e.client.smbMu.Unlock()
 
-	cCount, err := C.my_smbc_read(f.client.ctx, f.smbcfile, unsafe.Pointer(&buf[0]), C.size_t(len(buf)))
+	cCount, err := C.my_smbc_read(e.client.ctx, e.smbcfile, unsafe.Pointer(&buf[0]), C.size_t(len(buf)))
 	c := int(cCount)
 	if c == 0 {
 		return 0, io.EOF
@@ -263,11 +263,11 @@ func (f *File) Read(buf []byte) (int, error) {
 }
 
 // Lseek repositions the file offset of the open file to the argument offset according to the directive whence.
-func (f *File) Lseek(offset, whence int) (int, error) {
-	f.client.smbMu.Lock()
-	defer f.client.smbMu.Unlock()
+func (e *File) Lseek(offset, whence int) (int, error) {
+	e.client.smbMu.Lock()
+	defer e.client.smbMu.Unlock()
 
-	newOffset, err := C.my_smbc_lseek(f.client.ctx, f.smbcfile, C.off_t(offset), C.int(whence))
+	newOffset, err := C.my_smbc_lseek(e.client.ctx, e.smbcfile, C.off_t(offset), C.int(whence))
 	if int(newOffset) < 0 && err != nil {
 		return int(newOffset), fmt.Errorf("cannot seek: %v", err)
 	}
@@ -275,13 +275,13 @@ func (f *File) Lseek(offset, whence int) (int, error) {
 }
 
 // Close closes current file and and releases its ressources.
-func (f *File) Close() {
-	f.client.smbMu.Lock()
-	defer f.client.smbMu.Unlock()
+func (e *File) Close() {
+	e.client.smbMu.Lock()
+	defer e.client.smbMu.Unlock()
 
-	if f.smbcfile != nil {
-		C.my_smbc_close(f.client.ctx, f.smbcfile)
-		f.smbcfile = nil
+	if e.smbcfile != nil {
+		C.my_smbc_close(e.client.ctx, e.smbcfile)
+		e.smbcfile = nil
 	}
 }
 
