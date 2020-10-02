@@ -100,8 +100,8 @@ func (s *smbclientSuite) generateSmbdConf(c *C) string {
 func (s *smbclientSuite) startSmbd(c *C) {
 	// tells smbd to use a port different from "445"
 	os.Setenv("LIBSMB_PROG", "nc localhost 1445")
-	smb_conf := s.generateSmbdConf(c)
-	cmd := exec.Command("smbd", "-FS", "-s", smb_conf)
+	smbConf := s.generateSmbdConf(c)
+	cmd := exec.Command("smbd", "-FS", "-s", smbConf)
 	//cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err := cmd.Start()
