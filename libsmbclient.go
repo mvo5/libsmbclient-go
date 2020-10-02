@@ -285,9 +285,8 @@ func (e *File) Close() {
 	}
 }
 
-// INTERNAL use only
-//export GoAuthCallbackHelper
-func GoAuthCallbackHelper(fn unsafe.Pointer, serverName, shareName, domainOut *C.char, domainLen C.int, usernameOut *C.char, ulen C.int, passwordOut *C.char, pwlen C.int) {
+//export authCallbackHelper
+func authCallbackHelper(fn unsafe.Pointer, serverName, shareName, domainOut *C.char, domainLen C.int, usernameOut *C.char, ulen C.int, passwordOut *C.char, pwlen C.int) {
 	callback := *(*AuthCallback)(fn)
 	domain, user, pw := callback(C.GoString(serverName), C.GoString(shareName))
 	C.strncpy(domainOut, C.CString(domain), C.size_t(domainLen))
