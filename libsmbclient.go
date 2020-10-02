@@ -54,7 +54,7 @@ type Dirent struct {
 
 // *sigh* even with libsmbclient-4.0 the library is not MT safe,
 // e.g. smbc_init_context from multiple threads crashes
-var smbMu *sync.Mutex = &sync.Mutex{}
+var smbMu = sync.Mutex{}
 
 // client interface
 type Client struct {
@@ -75,7 +75,7 @@ func New() *Client {
 	defer smbMu.Unlock()
 
 	c := &Client{ctx: C.smbc_new_context(),
-		smbMu: smbMu}
+		smbMu: &smbMu}
 	C.smbc_init_context(c.ctx)
 	// this does not work reliable, see TestLibsmbclientThreaded test
 	/*
