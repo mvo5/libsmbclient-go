@@ -1,6 +1,12 @@
 Go Bindings for libsmbclient
 ============================
 
+[![PkgGoDev](https://pkg.go.dev/badge/github.com/mvo5/libsmbclient-go)](https://pkg.go.dev/github.com/mvo5/libsmbclient-go)
+[![Tests report](https://github.com/mvo5/libsmbclient-go/workflows/Test/badge.svg)](https://github.com//mvo5/libsmbclient-go/actions?query=workflow%3ATest)
+[![Go Report Card](https://goreportcard.com/badge/github.com/mvo5/libsmbclient-go)](https://goreportcard.com/report/github.com/mvo5/libsmbclient-go)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/mvo5/libsmbclient-go/blob/master/COPYING)
+
+
 Bindings (read-only for now) for the libsmbclient library from
 samba. To compile on debian/ubuntu install the "libsmbclient-dev"
 package.
