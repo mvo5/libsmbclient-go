@@ -118,7 +118,7 @@ func (c *Client) Close() error {
 }
 
 // AuthCallback is the authentication function that will be called during connection with samba.
-type AuthCallback = func(serverName string, shareName string) (domain string, username string, password string)
+type AuthCallback = func(serverName, shareName string) (domain, username, password string)
 
 // SetAuthCallback assigns the authentication function that will be called during connection
 // with samba.
@@ -233,7 +233,7 @@ func (e *File) Readdir() (*Dirent, error) {
 
 // Open opens a file and returns a handle on success.
 // FIXME: mode is actually "mode_t mode"
-func (c *Client) Open(furl string, flags int, mode int) (File, error) {
+func (c *Client) Open(furl string, flags, mode int) (File, error) {
 	c.smbMu.Lock()
 	defer c.smbMu.Unlock()
 
@@ -287,7 +287,7 @@ func (e *File) Close() {
 
 // INTERNAL use only
 //export GoAuthCallbackHelper
-func GoAuthCallbackHelper(fn unsafe.Pointer, serverName, shareName *C.char, domainOut *C.char, domainLen C.int, usernameOut *C.char, ulen C.int, passwordOut *C.char, pwlen C.int) {
+func GoAuthCallbackHelper(fn unsafe.Pointer, serverName, shareName, domainOut *C.char, domainLen C.int, usernameOut *C.char, ulen C.int, passwordOut *C.char, pwlen C.int) {
 	callback := *(*AuthCallback)(fn)
 	domain, user, pw := callback(C.GoString(serverName), C.GoString(shareName))
 	C.strncpy(domainOut, C.CString(domain), C.size_t(domainLen))
