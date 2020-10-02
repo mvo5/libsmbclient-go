@@ -20,7 +20,7 @@ import (
 
 func Test(t *testing.T) { TestingT(t) }
 
-var SMB_CONF_TEMPLATE = `[global]
+var SmbConfTemplate = `[global]
 workgroup = TESTGROUP
 interfaces = lo 127.0.0.0/8
 smb ports = 1445
@@ -85,7 +85,7 @@ func (s *smbclientSuite) generateSmbdConf(c *C) string {
 		log.Fatal(err)
 	}
 	defer f.Close()
-	templateText := SMB_CONF_TEMPLATE
+	templateText := SmbConfTemplate
 	type Dir struct {
 		Tempdir string
 	}
@@ -175,10 +175,10 @@ func readAllFilesInDir(client *libsmbclient.Client, baseDir string, ch chan int)
 		if dirent.Name == "." || dirent.Name == ".." {
 			continue
 		}
-		if dirent.Type == libsmbclient.SMBC_DIR {
+		if dirent.Type == libsmbclient.SmbcDir {
 			go readAllFilesInDir(client, baseDir+dirent.Name+"/", ch)
 		}
-		if dirent.Type == libsmbclient.SMBC_FILE {
+		if dirent.Type == libsmbclient.SmbcFile {
 			go openFile(client, baseDir+dirent.Name, ch)
 		}
 	}

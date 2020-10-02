@@ -93,10 +93,10 @@ func multiThreadStressTest(client *libsmbclient.Client, uri string) {
 		}
 		newUri := uri + "/" + dirent.Name
 		switch dirent.Type {
-		case libsmbclient.SMBC_DIR, libsmbclient.SMBC_FILE_SHARE:
+		case libsmbclient.SmbcDir, libsmbclient.SmbcFileShare:
 			fmt.Println("d: " + newUri)
 			go multiThreadStressTest(client, newUri)
-		case libsmbclient.SMBC_FILE:
+		case libsmbclient.SmbcFile:
 			fmt.Println("f: " + newUri)
 			go openSmbfile(client, newUri)
 		}

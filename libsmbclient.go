@@ -36,22 +36,22 @@ import "C"
 type SmbcType int
 
 const (
-	// SMBC_WORKGROUP is a workgroup entity.
-	SMBC_WORKGROUP SmbcType = C.SMBC_WORKGROUP
-	// SMBC_FILE_SHARE is a file share.
-	SMBC_FILE_SHARE = C.SMBC_FILE_SHARE
-	// SMBC_PRINTER_SHARE is a printer share.
-	SMBC_PRINTER_SHARE = C.SMBC_PRINTER_SHARE
-	// SMBC_COMMS_SHARE is a communication share.
-	SMBC_COMMS_SHARE = C.SMBC_COMMS_SHARE
-	// SMBC_IPC_SHARE is an ipc share entity.
-	SMBC_IPC_SHARE = C.SMBC_IPC_SHARE
-	// SMBC_DIR is a directory.
-	SMBC_DIR = C.SMBC_DIR
-	// SMBC_FILE is a file.
-	SMBC_FILE = C.SMBC_FILE
-	// SMBC_LINK is a symlink.
-	SMBC_LINK = C.SMBC_LINK
+	// SmbcWorkgroup is a workgroup entity.
+	SmbcWorkgroup SmbcType = C.SMBC_WORKGROUP
+	// SmbcFileShare is a file share.
+	SmbcFileShare = C.SMBC_FILE_SHARE
+	// SmbcPrinterShare is a printer share.
+	SmbcPrinterShare = C.SMBC_PRINTER_SHARE
+	// SmbcCommsShare is a communication share.
+	SmbcCommsShare = C.SMBC_COMMS_SHARE
+	// SmbcIPCShare is an ipc share entity.
+	SmbcIPCShare = C.SMBC_IPC_SHARE
+	// SmbcDir is a directory.
+	SmbcDir = C.SMBC_DIR
+	// SmbcFile is a file.
+	SmbcFile = C.SMBC_FILE
+	// SmbcLink is a symlink.
+	SmbcLink = C.SMBC_LINK
 )
 
 // *sigh* even with libsmbclient-4.0 the library is not MT safe,
