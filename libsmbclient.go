@@ -84,8 +84,10 @@ func New() *Client {
 	smbMu.Lock()
 	defer smbMu.Unlock()
 
-	c := &Client{ctx: C.smbc_new_context(),
-		smbMu: &smbMu}
+	c := &Client{
+		ctx:   C.smbc_new_context(),
+		smbMu: &smbMu,
+	}
 	C.smbc_init_context(c.ctx)
 	// this does not work reliable, see TestLibsmbclientThreaded test
 	/*

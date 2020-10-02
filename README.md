@@ -7,8 +7,8 @@ package.
 
 Build it with:
 ```
-$ go build cmd/smb/main.go
-$ ./main -show-dir smb://localhost
+$ go build ./cmd/smb
+$ ./smb -show-dir smb://localhost
 ```
 
 Check main.go for a code example.
@@ -27,8 +27,9 @@ Example usage:
 
 ```
 import (
-       "smbclient"
        "fmt"
+
+       "github.com/mvo5/libsmbclient-go"
 )
 
 client := smbclient.New()
@@ -42,6 +43,6 @@ for {
     if err != nil {
        break
     }
-    fmt.Println(dirent)   
+    fmt.Println(dirent)
 }
 ```

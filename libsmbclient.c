@@ -37,7 +37,6 @@ void my_smbc_close(SMBCCTX *c, SMBCFILE *f) {
   fn(c, f);
 }
 
-
 void my_smbc_auth_callback(SMBCCTX *ctx,
 	       const char *server_name, const char *share_name,
 	       char *domain_out, int domainmaxlen,

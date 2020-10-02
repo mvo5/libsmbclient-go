@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"testing"
 	"text/template"
-	_ "time"
 
 	. "gopkg.in/check.v1"
 
