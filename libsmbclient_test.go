@@ -6,11 +6,13 @@ import (
 	"io/ioutil"
 	"log"
 	"math/rand"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
 	"text/template"
+	"time"
 
 	. "gopkg.in/check.v1"
 
@@ -50,6 +52,19 @@ type smbclientSuite struct {
 }
 
 var _ = Suite(&smbclientSuite{})
+
+func waitPortReadyOrPanic(port int) {
+	for i := 0; i < 100; i++ {
+		conn, err := net.Dial("tcp", fmt.Sprintf("localhost:%v", port))
+		if err != nil {
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+		conn.Close()
+		return
+	}
+	panic(fmt.Sprintf("cannot connect to port %v", port))
+}
 
 func (s *smbclientSuite) SetUpSuite(c *C) {
 	s.tempdir = c.MkDir()
@@ -106,6 +121,7 @@ func (s *smbclientSuite) startSmbd(c *C) {
 	err := cmd.Start()
 	c.Assert(err, IsNil)
 	s.smbdCmd = cmd
+	waitPortReadyOrPanic(1445)
 }
 
 func (s *smbclientSuite) TestLibsmbclientBindings(c *C) {
