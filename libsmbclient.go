@@ -8,13 +8,12 @@ import (
 )
 
 /*
-#cgo LDFLAGS: -lsmbclient
+#cgo pkg-config: smbclient
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-
-#include <samba-4.0/libsmbclient.h>
+#include <libsmbclient.h>
 
 SMBCFILE* my_smbc_opendir(SMBCCTX *c, const char *fname);
 int my_smbc_closedir(SMBCCTX *c, SMBCFILE *dir);
