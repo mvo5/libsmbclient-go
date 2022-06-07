@@ -127,8 +127,11 @@ func (s *smbclientSuite) startSmbd(c *C) {
 func (s *smbclientSuite) TestLibsmbclientBindings(c *C) {
 	// open client
 	client := libsmbclient.New()
+	defer client.Close()
+
 	d, err := client.Opendir("smb://localhost:1445")
 	c.Assert(err, IsNil)
+	defer d.Closedir()
 
 	// collect dirs
 	foundSmbDirs := map[string]bool{}
